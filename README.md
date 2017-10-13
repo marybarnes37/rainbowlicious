@@ -1,6 +1,6 @@
 # rainbowlicious
 
-A rainbow predictor and identifier built on data science, twilio and awesomeness. 
+A rainbow predictor built on data science, Twilio and awesomeness. 
 
 (also, a work in progress)
 

@@ -1,11 +1,4 @@
-import os
-import sys
-import datetime
-from dateutil.parser import parse as parsedate
-
 import json
-
-import flickr_api
 import pymongo
 
 #use database "capstone" and collection "flickr_rainbow"

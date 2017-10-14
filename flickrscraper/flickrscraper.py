@@ -22,7 +22,7 @@ def setup_mongo_client(db_name, collection_name, address='mongodb://localhost:27
     return client, collection
 
 def get_api_key():
-    with open('/Users/marybarnes/.ssh/flickr.txt', 'rb') as f:
+    with open('~/flickr.txt', 'rb') as f:
         api_key = f.readline()
         secret = f.readline()
     return api_key, secret

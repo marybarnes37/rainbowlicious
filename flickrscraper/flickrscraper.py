@@ -43,15 +43,21 @@ def get_flickr_json(collection, api_key, group_ids, pages):
                      'format':'json', 'nojsoncallback':1,
                      'page':j}
             r = requests.get(url, params=params)
-            if r.status_code != 200:
+            if r.status_code == 200:
+                collection.insert_one(r.json())
+                print("gathered page {}".format(j))
+                time.sleep(7)
+            else:
                 with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/flickrscraper/status_code_log.txt', "a") as myfile:
                     myfile.write("status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
-                time.sleep(60)
-            else:
-                collection.insert_one(r.json())
-            print("gathered page {}".format(j))
-            time.sleep(10)
+                print('encountered status code {}'.format(r.status_code))
+                return None
+            if j % 10 == 0:
+                total = collection.find().count()
+                print("added {} documents to the collection".format(total))
         print("gathered all of group id {}".format(group_ids[i]))
+    total = collection.find().count()
+    print('finished gathering a total of {} documents'.format(total))
 
 
 def main():
@@ -60,3 +66,4 @@ def main():
     group_ids = ['52241461495@N01', '62702064@N00']
     pages = [119, 178]
     get_flickr_json(collection, api_key, group_ids, pages)
+    client.close()

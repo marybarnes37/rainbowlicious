@@ -1,5 +1,5 @@
 import json
-import pymongo import MongoClient
+from pymongo import MongoClient
 import os
 
 #use database "capstone" and collection "flickr_rainbow"

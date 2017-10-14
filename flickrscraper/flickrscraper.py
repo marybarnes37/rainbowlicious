@@ -1,5 +1,6 @@
 import json
 import pymongo
+import os
 
 #use database "capstone" and collection "flickr_rainbow"
 
@@ -22,7 +23,9 @@ def setup_mongo_client(db_name, collection_name, address='mongodb://localhost:27
     return client, collection
 
 def get_api_key():
-    with open('$HOME/flickr.txt', 'rb') as f:
+    path = os.path.join(os.environ['HOME'],'flickr.txt')
+    #with open('~/flickr.txt', 'rb') as f:
+    with open(path,'rb') as f:
         api_key = f.readline()
         secret = f.readline()
     return api_key, secret

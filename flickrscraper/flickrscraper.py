@@ -1,7 +1,6 @@
 import json
 from pymongo import MongoClient
 import os
-from flickr_api.api import flickr
 import requests
 import time
 

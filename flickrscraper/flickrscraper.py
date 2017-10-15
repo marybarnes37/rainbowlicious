@@ -28,8 +28,8 @@ def get_api_key():
     path = os.path.join(os.environ['HOME'],'flickr.txt')
     #with open('~/flickr.txt', 'rb') as f:
     with open(path,'rb') as f:
-        api_key = f.readline()
-        secret = f.readline()
+        api_key = f.readline().strip()
+        secret = f.readline().strip()
     return api_key, secret
 
 

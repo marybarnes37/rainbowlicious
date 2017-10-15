@@ -62,8 +62,9 @@ def get_flickr_json(collection, api_key, group_ids, pages):
 
 def main():
     api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow', address='mongodb://localhost:27017/')
-    group_ids = ['52241461495@N01', '62702064@N00']
-    pages = [119, 178]
-    get_flickr_json(collection, api_key, group_ids, pages)
-    client.close()
+    print(api_key)
+    # client, collection = setup_mongo_client('capstone', 'flickr_rainbow', address='mongodb://localhost:27017/')
+    # group_ids = ['52241461495@N01', '62702064@N00']
+    # pages = [119, 178]
+    # get_flickr_json(collection, api_key, group_ids, pages)
+    # client.close()

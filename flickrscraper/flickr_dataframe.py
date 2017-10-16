@@ -42,18 +42,26 @@ def keep_US_locations(df):
 
 
 def clean_flickr_df(df):
-    return df_test.dropna()
+    return df.dropna()
 
 
 def pickle_df(df, file_name):
-    with open('pickles/flickr_rain.pkl', 'wb') as f:
+    with open('pickles/{}'.format(file_name), 'wb') as f:
         pickle.dump(df, f)
 
 
-def main(client_text='capstone', collection_text='flickr_rainbow'):
+def main(client_text='capstone', collection_text='flickr_rainbow_correct'):
     client, collection = setup_mongo_client(client_text, collection_text)
     df = flickr_dataframe(collection)
+    print('finished creating dataframe')
+    pickle_df(df, 'flickr_stage1')
     df = drop_unknown_dates(df)
+    print('finished dropping unknown dates')
+    pickle_df(df, 'flickr_stage2')
     df = keep_US_locations(df)
+    print('finished US locations')
+    pickle_df(df, 'flickr_stage3')
     df = clean_flickr_df(df)
+    print('finished cleaning')
     pickle_df(df, collection_text)
+    client.close()

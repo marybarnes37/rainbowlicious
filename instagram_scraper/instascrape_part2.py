@@ -19,9 +19,14 @@ def setup_mongo_client(db_name, collection_name, client=None, address='mongodb:/
     collection = db[collection_name]
     return client, collection
 
+def get_proxy():
+    path = os.path.join(os.environ['HOME'],'proxy.txt')
+    with open(path,'rb') as f:
+        proxy = f.readline().strip()
+    return proxy
 
 def add_urls_and_datetimes(collection):
-    cursor = collection.find({ "url" : { "$exists" : False } })
+    cursor = collection.find({ "url" : { "$exists" : False } }, no_cursor_timeout=True)
     added_counter = 0
     base_url = 'https://www.instagram.com/p/'
     for record in cursor:
@@ -36,15 +41,19 @@ def add_urls_and_datetimes(collection):
     print(string_report)
     with open('status_reports.txt', "a") as myfile:
         myfile.write(string_report)
+    cursor.close()
 
 def visit_urls_get_locations(collection):
-    cursor = collection.find({ "location_name" : { "$exists" : False } })
+    proxies = {'https' : get_proxy()}
+    print(proxies) # DELETE
+    cursor = collection.find({ "location_name" : { "$exists" : False } }, no_cursor_timeout=True)
     added_counter = 0
     deleted_counter = 0
     for record in cursor:
-        time.sleep(np.random.randint(10, 15))
         url = record['url']
-        html = requests.get(url)
+        html = requests.get(url, proxies = proxies)
+        print('proxy worked') # DELETE
+        return None # DELETE
         if html.status_code == 200:
             match = re.search('window._sharedData = (.*);</script>', html.text)
             json_dict = json.loads(match.group(1))
@@ -63,15 +72,15 @@ def visit_urls_get_locations(collection):
                 myfile.write("status code for url {}: {}\n {} \n{}".format(url, html.status_code, html.content, html.headers))
             print('encountered status code {} for url {}'.format(html.status_code, url))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
-            time.sleep(np.random.randint(30))
         string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
     print(string_report)
     with open('status_reports.txt', "a") as myfile:
         myfile.write(string_report)
+    cursor.close()
 
 
 def add_lat_long(collection):
-    cursor = collection.find({ "latitude" : { "$exists" : False }, "location_name" : { "$exists" : True } })
+    cursor = collection.find({ "latitude" : { "$exists" : False }, "location_name" : { "$exists" : True } }, no_cursor_timeout=True)
     geolocator = Nominatim()
     added_counter = 0
     deleted_counter = 0
@@ -85,10 +94,11 @@ def add_lat_long(collection):
     print(string_report)
     with open('status_reports.txt', "a") as myfile:
         myfile.write(string_report)
+    cursor.close()
 
 
 def filter_US_locations(collection):
-    cursor = collection.find({ "location_dict" : { "$exists" : False }, "latitude" : { "$exists" : True }})
+    cursor = collection.find({ "location_dict" : { "$exists" : False }, "latitude" : { "$exists" : True }}, no_cursor_timeout=True)
     added_counter = 0
     deleted_counter = 0
     for record in cursor:
@@ -101,14 +111,15 @@ def filter_US_locations(collection):
     print(string_report)
     with open('status_reports.txt', "a") as myfile:
         myfile.write(string_report)
+    cursor.close()
 
 def main():
     client, collection = setup_mongo_client('capstone', 'insta_rainbow')
     add_urls_and_datetimes(collection)
     print('added urls_and_datetimes')
     visit_urls_get_locations(collection)
-    print('visited urls and got locations')
-    add_lat_long(collection)
-    print('added longitude and latitude')
-    filter_US_locations(collection)
-    print('filtered for US locations')
+    # print('visited urls and got locations')
+    # add_lat_long(collection)
+    # print('added longitude and latitude')
+    # filter_US_locations(collection)
+    # print('filtered for US locations')

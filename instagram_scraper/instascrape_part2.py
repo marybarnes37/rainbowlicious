@@ -44,13 +44,13 @@ def add_urls_and_datetimes(collection):
     cursor.close()
 
 def visit_urls_get_locations(collection):
-    proxies = {'https' : get_proxy()}
+    # proxies = {'https' : get_proxy()}
     cursor = collection.find({ "location_name" : { "$exists" : False } }, no_cursor_timeout=True)
     added_counter = 0
     deleted_counter = 0
     for record in cursor:
         url = record['url']
-        html = requests.get(url, proxies = proxies)
+        html = requests.get(url)
         if html.status_code == 200:
             match = re.search('window._sharedData = (.*);</script>', html.text)
             json_dict = json.loads(match.group(1))
@@ -69,7 +69,7 @@ def visit_urls_get_locations(collection):
                 myfile.write("status code for url {}: {}\n {} \n{}".format(url, html.status_code, html.content, html.headers))
             print('encountered status code {} for url {}'.format(html.status_code, url))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
-        time.sleep(np.random.randint(8, 12))
+        time.sleep(np.random.randint(9, 13))
     string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
     print(string_report)
     with open('status_reports.txt', "a") as myfile:

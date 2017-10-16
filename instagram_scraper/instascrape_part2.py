@@ -22,6 +22,7 @@ def setup_mongo_client(db_name, collection_name, client=None, address='mongodb:/
 
 def add_urls_and_datetimes(collection):
     cursor = collection.find({ "url" : { "$exists" : False } })
+    added_counter = 0
     base_url = 'https://www.instagram.com/p/'
     for record in cursor:
         shortcode = record['node']['shortcode']
@@ -30,6 +31,11 @@ def add_urls_and_datetimes(collection):
         timestamp = record['node']['taken_at_timestamp']
         date_time = datetime.datetime.fromtimestamp(timestamp)
         collection.update_one({"_id": record["_id"]}, {"$set": {'datetime': date_time}})
+        added_counter += 1
+    string_report = "added {} urls and dates ".format(added_counter)
+    print(string_report)
+    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+        myfile.write(string_report)
 
 def visit_urls_get_locations(collection):
     cursor = collection.find({ "location_name" : { "$exists" : False } })
@@ -58,7 +64,10 @@ def visit_urls_get_locations(collection):
             print('encountered status code {}'.format(r.status_code))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
             return None
-        print("added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
+        string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
+        print(string_report)
+        with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+            myfile.write(string_report)
 
 
 def add_lat_long(collection):
@@ -72,7 +81,10 @@ def add_lat_long(collection):
             collection.update_one({"_id": record["_id"]}, {"$set": {'latitude': geolocation.latitude, 'longitude': geolocation.longitude}})
         else:
             collection.delete_one({"_id": record["_id"]})
-    print("added {} latitude and longitude and deleted {} records".format(added_counter, deleted_counter))
+    string_report = "added {} latitude and longitude and deleted {} records".format(added_counter, deleted_counter)
+    print(string_report)
+    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+        myfile.write(string_report)
 
 
 def filter_US_locations(collection):
@@ -85,8 +97,10 @@ def filter_US_locations(collection):
             collection.update_one({"_id": record["_id"]}, {"$set": {'location_dict': location_data[0]}})
         else:
             collection.delete_one({"_id": record["_id"]})
-    print("added {} location dicts and deleted {} records".format(added_counter, deleted_counter))
-
+    string_report = "added {} location dicts and deleted {} records".format(added_counter, deleted_counter)
+    print(string_report)
+    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+        myfile.write(string_report)
 
 def main():
     setup_mongo_client('capstone', 'insta_rainbow')

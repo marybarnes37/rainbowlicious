@@ -73,7 +73,7 @@ def visit_urls_get_locations(collection):
                 myfile.write("status code for url {}: {}\n {} \n{}".format(url, html.status_code, html.content, html.headers))
             print('encountered status code {} for url {}'.format(html.status_code, url))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
-        time.sleep(np.random.uniform(0.5, 1.0))
+        time.sleep(np.random.randint(1,3))
     string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
     print(string_report)
     with open('status_reports.txt', "a") as myfile:

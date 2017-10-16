@@ -42,7 +42,7 @@ def visit_urls_get_locations(collection):
     added_counter = 0
     deleted_counter = 0
     for record in cursor:
-        time.sleep(np.random.randint(8, 12))
+        time.sleep(np.random.randint(10, 15))
         url = record['url']
         html = requests.get(url)
         if html.status_code == 200:
@@ -60,18 +60,18 @@ def visit_urls_get_locations(collection):
                 deleted_counter += 1
         else:
             with open('status_code_log.txt', "a") as myfile:
-                myfile.write("status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
-            print('encountered status code {}'.format(r.status_code))
+                myfile.write("status code for url {}: {}\n {} \n{}".format(url, html.status_code, html.content, html.headers))
+            print('encountered status code {} for url {}'.format(html.status_code, url))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
-            return None
+            time.sleep(np.random.randint(30))
         string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
-        print(string_report)
-        with open('status_reports.txt', "a") as myfile:
-            myfile.write(string_report)
+    print(string_report)
+    with open('status_reports.txt', "a") as myfile:
+        myfile.write(string_report)
 
 
 def add_lat_long(collection):
-    cursor = collection.find({ "latitude" : { "$exists" : False } })
+    cursor = collection.find({ "latitude" : { "$exists" : False }, "location_name" : { "$exists" : True } })
     geolocator = Nominatim()
     added_counter = 0
     deleted_counter = 0
@@ -88,7 +88,7 @@ def add_lat_long(collection):
 
 
 def filter_US_locations(collection):
-    cursor = collection.find({ "location_dict" : { "$exists" : False } })
+    cursor = collection.find({ "location_dict" : { "$exists" : False }, "latitude" : { "$exists" : True }})
     added_counter = 0
     deleted_counter = 0
     for record in cursor:

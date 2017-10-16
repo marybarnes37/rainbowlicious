@@ -60,7 +60,7 @@ def visit_urls_get_locations(collection):
             except Exception as e1:
                 print("sleeping for 5 seconds because request failed, exception: {}".format(e1))
                 html = requests.get(url, proxies=proxies, headers={"User-Agent": ua.random})
-                time.sleep(5)
+                time.sleep(3)
         except Exception as e2:
             print(e2)
             collection.delete_one({"_id": record["_id"]})
@@ -87,7 +87,7 @@ def visit_urls_get_locations(collection):
                 myfile.write("status code for url {}: {}\n {} \n{}".format(url, html.status_code, html.content, html.headers))
             print('encountered status code {} for url {}'.format(html.status_code, url))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
-        time.sleep(np.random.uniform(.5,1.0))
+        time.sleep(np.random.uniform(.3,.7))
         string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
         print(string_report)
         with open('status_reports.txt', "a") as myfile:

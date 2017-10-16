@@ -103,7 +103,7 @@ def filter_US_locations(collection):
         myfile.write(string_report)
 
 def main():
-    setup_mongo_client('capstone', 'insta_rainbow')
+    client, collection = setup_mongo_client('capstone', 'insta_rainbow')
     add_urls_and_datetimes(collection)
     print('added urls_and_datetimes')
     visit_urls_get_locations(collection)

@@ -45,15 +45,12 @@ def add_urls_and_datetimes(collection):
 
 def visit_urls_get_locations(collection):
     proxies = {'https' : get_proxy()}
-    print(proxies) # DELETE
     cursor = collection.find({ "location_name" : { "$exists" : False } }, no_cursor_timeout=True)
     added_counter = 0
     deleted_counter = 0
     for record in cursor:
         url = record['url']
         html = requests.get(url, proxies = proxies)
-        print('proxy worked') # DELETE
-        return None # DELETE
         if html.status_code == 200:
             match = re.search('window._sharedData = (.*);</script>', html.text)
             json_dict = json.loads(match.group(1))
@@ -118,8 +115,8 @@ def main():
     add_urls_and_datetimes(collection)
     print('added urls_and_datetimes')
     visit_urls_get_locations(collection)
-    # print('visited urls and got locations')
-    # add_lat_long(collection)
-    # print('added longitude and latitude')
-    # filter_US_locations(collection)
-    # print('filtered for US locations')
+    print('visited urls and got locations')
+    add_lat_long(collection)
+    print('added longitude and latitude')
+    filter_US_locations(collection)
+    print('filtered for US locations')

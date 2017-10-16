@@ -34,7 +34,7 @@ def add_urls_and_datetimes(collection):
         added_counter += 1
     string_report = "added {} urls and dates ".format(added_counter)
     print(string_report)
-    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+    with open('status_reports.txt', "a") as myfile:
         myfile.write(string_report)
 
 def visit_urls_get_locations(collection):
@@ -59,14 +59,14 @@ def visit_urls_get_locations(collection):
                 collection.delete_one({"_id": record["_id"]})
                 deleted_counter += 1
         else:
-            with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_code_log.txt', "a") as myfile:
+            with open('status_code_log.txt', "a") as myfile:
                 myfile.write("status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
             print('encountered status code {}'.format(r.status_code))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
             return None
         string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
         print(string_report)
-        with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+        with open('status_reports.txt', "a") as myfile:
             myfile.write(string_report)
 
 
@@ -83,7 +83,7 @@ def add_lat_long(collection):
             collection.delete_one({"_id": record["_id"]})
     string_report = "added {} latitude and longitude and deleted {} records".format(added_counter, deleted_counter)
     print(string_report)
-    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+    with open('status_reports.txt', "a") as myfile:
         myfile.write(string_report)
 
 
@@ -99,7 +99,7 @@ def filter_US_locations(collection):
             collection.delete_one({"_id": record["_id"]})
     string_report = "added {} location dicts and deleted {} records".format(added_counter, deleted_counter)
     print(string_report)
-    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/instagram_scraper/status_reports.txt', "a") as myfile:
+    with open('status_reports.txt', "a") as myfile:
         myfile.write(string_report)
 
 def main():

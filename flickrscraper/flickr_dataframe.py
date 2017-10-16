@@ -2,6 +2,7 @@ from pymongo import MongoClient
 import pandas as pd
 import reverse_geocoder
 import pickle
+import time
 
 def setup_mongo_client(db_name, collection_name, client=None, address='mongodb://localhost:27017/'):
     if not client:

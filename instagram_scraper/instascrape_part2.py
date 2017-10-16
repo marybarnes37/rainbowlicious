@@ -54,7 +54,18 @@ def visit_urls_get_locations(collection):
     deleted_counter = 0
     for record in cursor:
         url = record['url']
-        html = requests.get(url, proxies=proxies, headers={"User-Agent": ua.random})
+        try:
+            try:
+                html = requests.get(url, proxies=proxies, headers={"User-Agent": ua.random})
+            except Exception as e1:
+                print("sleeping for 5 seconds because request failed, exception: {}".format(e1))
+                html = requests.get(url, proxies=proxies, headers={"User-Agent": ua.random})
+                time.sleep(5)
+        except Exception as e2:
+            print(e2)
+            collection.delete_one({"_id": record["_id"]})
+            deleted_counter += 1
+            continue
         if html.status_code == 200:
             match = re.search('window._sharedData = (.*);</script>', html.text)
             json_dict = json.loads(match.group(1))
@@ -68,16 +79,19 @@ def visit_urls_get_locations(collection):
             except:
                 collection.delete_one({"_id": record["_id"]})
                 deleted_counter += 1
+        elif html.status_code == 404:
+            collection.delete_one({"_id": record["_id"]})
+            deleted_counter += 1
         else:
             with open('status_code_log.txt', "a") as myfile:
                 myfile.write("status code for url {}: {}\n {} \n{}".format(url, html.status_code, html.content, html.headers))
             print('encountered status code {} for url {}'.format(html.status_code, url))
             print("had already added {} raw locations and deleted {} records".format(added_counter, deleted_counter))
-        time.sleep(np.random.randint(1,3))
-    string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
-    print(string_report)
-    with open('status_reports.txt', "a") as myfile:
-        myfile.write(string_report)
+        time.sleep(np.random.uniform(.5,1.0))
+        string_report = "added {} raw locations and deleted {} records".format(added_counter, deleted_counter)
+        print(string_report)
+        with open('status_reports.txt', "a") as myfile:
+            myfile.write(string_report)
     cursor.close()
 
 

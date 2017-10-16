@@ -8,7 +8,7 @@ import datetime
 import json
 import requests
 import re
-import csv
+import os
 
 def setup_mongo_client(db_name, collection_name, client=None, address='mongodb://localhost:27017/'):
     if not client:

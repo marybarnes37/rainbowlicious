@@ -35,6 +35,7 @@ def add_lat_long(collection):
             deleted_counter += 1
         string_report = "added {} latitude and longitude and deleted {} records".format(added_counter, deleted_counter)
         print(string_report)
+        time.sleep(1.5)
     cursor.close()
 
 
@@ -52,6 +53,7 @@ def filter_US_locations(collection):
             deleted_counter += 1
         string_report = "added {} location dicts and deleted {} records".format(added_counter, deleted_counter)
         print(string_report)
+        time.sleep(1.5)
     cursor.close()
 
 def main():

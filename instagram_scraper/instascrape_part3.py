@@ -29,12 +29,12 @@ def add_lat_long(collection):
         geolocation = geolocator.geocode(record['location_name'],timeout=10000)
         if geolocation!=None:
             collection.update_one({"_id": record["_id"]}, {"$set": {'latitude': geolocation.latitude, 'longitude': geolocation.longitude}})
+            added_counter += 1
         else:
             collection.delete_one({"_id": record["_id"]})
-    string_report = "added {} latitude and longitude and deleted {} records".format(added_counter, deleted_counter)
-    print(string_report)
-    with open('status_reports.txt', "a") as myfile:
-        myfile.write(string_report)
+            deleted_counter += 1
+        string_report = "added {} latitude and longitude and deleted {} records".format(added_counter, deleted_counter)
+        print(string_report)
     cursor.close()
 
 
@@ -46,12 +46,12 @@ def filter_US_locations(collection):
         location_data = reverse_geocoder.search((record['latitude'], record['longitude']))
         if location_data[0]['cc'] == 'US':
             collection.update_one({"_id": record["_id"]}, {"$set": {'location_dict': location_data[0]}})
+            added_counter += 1
         else:
             collection.delete_one({"_id": record["_id"]})
-    string_report = "added {} location dicts and deleted {} records".format(added_counter, deleted_counter)
-    print(string_report)
-    with open('status_reports.txt', "a") as myfile:
-        myfile.write(string_report)
+            deleted_counter += 1
+        string_report = "added {} location dicts and deleted {} records".format(added_counter, deleted_counter)
+        print(string_report)
     cursor.close()
 
 def main():

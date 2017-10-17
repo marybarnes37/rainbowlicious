@@ -32,7 +32,7 @@ def add_urls_and_datetimes(collection):
     cursor = collection.find({ "url" : { "$exists" : False } }, no_cursor_timeout=True)
     added_counter = 0
     base_url = 'https://www.instagram.com/pexit'
-    for record in cursor:s
+    for record in cursor:
         shortcode = record['node']['shortcode']
         full_url = base_url + shortcode + '/'
         collection.update_one({"_id": record["_id"]}, {"$set": {'url': full_url}})

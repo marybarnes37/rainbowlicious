@@ -31,8 +31,8 @@ def get_proxy():
 def add_urls_and_datetimes(collection):
     cursor = collection.find({ "url" : { "$exists" : False } }, no_cursor_timeout=True)
     added_counter = 0
-    base_url = 'https://www.instagram.com/p/'
-    for record in cursor:
+    base_url = 'https://www.instagram.com/pexit'
+    for record in cursor:s
         shortcode = record['node']['shortcode']
         full_url = base_url + shortcode + '/'
         collection.update_one({"_id": record["_id"]}, {"$set": {'url': full_url}})
@@ -133,9 +133,14 @@ def main():
     client, collection = setup_mongo_client('capstone', 'insta_rainbow')
     add_urls_and_datetimes(collection)
     print('added urls_and_datetimes')
-    visit_urls_get_locations(collection)
+    while True:
+        try:
+            visit_urls_get_locations(collection)
+        except:
+            continue
+        break
     print('visited urls and got locations')
-    add_lat_long(collection)
-    print('added longitude and latitude')
-    filter_US_locations(collection)
-    print('filtered for US locations')
+    # add_lat_long(collection)
+    # print('added longitude and latitude')
+    # filter_US_locations(collection)
+    # print('filtered for US locations')

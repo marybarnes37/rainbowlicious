@@ -59,8 +59,15 @@ def get_metar_reports(collection):
             continue
         if html.status_code == 200:
             metar_content = html.content
-            collection.update_one({"_id": record["_id"]}, {"$set": {'metar_data': metar_content}})
-            added_counter += 1
+            if "Sorry" in metar_content:
+                print(html.content)
+                break
+            elif "500 Fecha" in metar_content:
+                print(html.content)
+                continue
+            else:
+                collection.update_one({"_id": record["_id"]}, {"$set": {'metar_data': metar_content}})
+                added_counter += 1
         else:
             skipped_counter += 1
             with open('status_code_log_ogimet.txt', "a") as myfile:
@@ -92,4 +99,4 @@ def main(client_text='capstone', collection_text='flickr_us_rainbow'):
     df = pd.read_pickle('flickr_with_station_and_time.p')
     initialize_mongo_collection(df, collection)
     print('initialized collection')
-    # get_metar_reports(collection)
+    get_metar_reports(collection)

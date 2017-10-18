@@ -87,9 +87,9 @@ def get_metar_params(record):
             }
     return ogimet_params
 
-def main(client_text='capstone', collection_text='flickr_us_rainbows_attempt2'):
+def main(client_text='capstone', collection_text='flickr_us_rainbow'):
     client, collection = setup_mongo_client(client_text, collection_text)
-    df = pd.read_pickle('/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_utc_time_window.p')
+    df = pd.read_pickle('flickr_with_station_and_time.p')
     initialize_mongo_collection(df, collection)
     print('initialized collection')
-    get_metar_reports(collection)
+    # get_metar_reports(collection)

@@ -3,6 +3,10 @@ import pandas as pd
 import reverse_geocoder
 import pickle
 import time
+import pytz
+from tzwhere import tzwhere
+from geopy.distance import vincenty
+import datetime
 
 def setup_mongo_client(db_name, collection_name, client=None, address='mongodb://localhost:27017/'):
     if not client:
@@ -75,16 +79,19 @@ def get_string_min_hour(num):
     else:
         return str(num)
 
-def fix_hours(hour):
+def fix_hours_days(hour, day):
     if hour == 24:
         hour = 0
+        day += 1
     if hour == -1:
         hour = 23
-    return hour
+        day -= 1
+    return hour, day
 
 def find_time_window(time):
     mm_orig = int(time[14:16])
     HH_orig = int(time[11:13])
+    DD_orig = int(time[8:10])
     if mm_orig + 30 > 59:
         mm_start = mm_orig - 30
         HH_start = HH_orig
@@ -97,17 +104,22 @@ def find_time_window(time):
     if mm_end > 60:
         mm_end -= 60
         HH_end += 1
-    HH_end = fix_hours(HH_end)
-    HH_start = fix_hours(HH_start)
+    # fix change between days
+    HH_end, DD_end = fix_hours_days(HH_end, DD_orig)
+    HH_start, DD_start = fix_hours_days(HH_start, DD_orig)
+    # get string version
     HH_start = get_string_min_hour(HH_start)
     mm_start = get_string_min_hour(mm_start)
+    DD_start = get_string_min_hour(DD_start)
     HH_end = get_string_min_hour(HH_end)
     mm_end = get_string_min_hour(mm_end)
-    start = "".join([time[:4], time[5:7], time[8:10], HH_start, mm_start])
-    stop = "".join([time[:4], time[5:7], time[8:10], HH_end, mm_end])
+    DD_end = get_string_min_hour(DD_end)
+    #create time window
+    start = "".join([time[:4], time[5:7], DD_start, HH_start, mm_start])
+    stop = "".join([time[:4], time[5:7], DD_end, HH_end, mm_end])
     return start, stop
 
-def get_utc(time, lat, lon):
+def get_utc(time, lat, lon, tzwhere_obj):
     timezone_str = tzwhere_obj.tzNameAt(float(lat), float(lon))
     if timezone_str == None:
         timezone_str = tzwhere_obj.tzNameAt(float(lat)-3, float(lon)-3)
@@ -126,18 +138,20 @@ def get_utc(time, lat, lon):
 
 
 def add_time_window(df):
-    df['utc_datetaken'] = None
-    df['YYYYMMDDHHmm_start'] = None
-    df['YYYYMMDDHHmm_end'] = None
+    df['utc_datetaken'] = ""
+    df['YYYYMMDDHHmm_start'] = ""
+    df['YYYYMMDDHHmm_end'] = ""
+    tzwhere_obj = tzwhere.tzwhere()
     for i in df.index:
         try:
-            df.loc[i, 'utc_datetaken'] = get_utc(df.loc[i, 'datetaken'], df.loc[i, 'lat'], df.loc[i, 'lon'])
+            df.loc[i, 'utc_datetaken'] = get_utc(df.loc[i, 'datetaken'], df.loc[i, 'lat'], df.loc[i, 'lon'], tzwhere_obj)
             start, stop = find_time_window(df.loc[i, 'utc_datetaken'])
             df.loc[i, 'YYYYMMDDHHmm_start'] = start
             df.loc[i, 'YYYYMMDDHHmm_end'] = stop
         except:
-            df = df.drop(i, axis=0)
-    time.sleep(.1)
+            df.drop(i, axis=0, inplace=True)
+        print(df.shape)
+    time.sleep(.5)
     return df
 
 
@@ -160,7 +174,9 @@ def main(client_text='capstone', collection_text='flickr_rainbow_correct'):
     df = get_closest_stations(df)
     print('got closest stations')
     pickle_df(df, 'flickr_stage4')
+    df = pd.read_pickle("/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/old_pickles/flickr_with_stations.p")
     df = add_time_window(df)
     print('added utc time window')
+    print(df.shape)
     pickle_df(df, 'flickr_with_station_and_time')
     client.close()

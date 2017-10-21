@@ -31,7 +31,7 @@ def get_proxy():
     return proxy
 
 
-def get_time_zone(record, tzwhere_obj):
+def get_time_zone(record, tzwhere_obj, collection):
     lat = record['latitude']
     lon = record['longitude']
     timezone_str = tzwhere_obj.tzNameAt(float(lat), float(lon))
@@ -43,6 +43,8 @@ def get_time_zone(record, tzwhere_obj):
                 timezone_str = tzwhere_obj.tzNameAt(float(lat)-3, float(lon)+3)
                 if timezone_str == None:
                     timezone_str = tzwhere_obj.tzNameAt(float(lat)+3, float(lon)-3)
+                    if timezone_str == None:
+                        collection.delete_one({"_id": record["_id"]})
     local_tz = pytz.timezone(timezone_str)
     utc_time = record['datetime']
     return local_tz.fromutc(utc_time)
@@ -54,7 +56,7 @@ def add_local_dates():
     tzwhere_obj = tzwhere.tzwhere()
     added_counter = 0
     for record in cursor:
-        local_datetime = get_time_zone(record, tzwhere_obj)
+        local_datetime = get_time_zone(record, tzwhere_obj, collection)
         string_local_datetime = local_datetime.strftime('%Y%m%d %Z')
         collection.update_one({"_id": record["_id"]}, {"$set": {'start_date_local': string_local_datetime }})
         added_counter += 1

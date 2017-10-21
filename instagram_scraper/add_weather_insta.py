@@ -110,9 +110,9 @@ def add_daily_weather():
             collection.update_one({"_id": record["_id"]}, {"$set": {'daily_weather': daily_weather }})
             added_counter += 1
         else:
-            print('encountered status code {} for url'.format(r.status_code))
+            print('encountered status code {} for url {}'.format(r.status_code, url))
             with open('weather_errors_and_status_log.txt', "a") as myfile:
-                myfile.write('encountered status code {} for url'.format(r.status_code))
+                myfile.write('encountered status code {} for url {}'.format(r.status_code, url))
         total = collection.find({"daily_weather" : { "$exists" : True }}).count()
         print('added {} weather dicts and skipped {}'.format(added_counter, skipped))
         print('a total of {} local dates have been added'.format(total))
@@ -126,6 +126,8 @@ def construct_weather_url(record):
     url = "http://api.weather.com/v1/geocode/" + str(lat) + "/" + str(lon)+ \
     "/observations/historical.json?apiKey=" + my_apikey + \
     "&language=en-US" + "&startDate="+str(startDate)[:-4]
+    url = string.strip(url)
+    print(url)
     return url
 
 def main(client_text='capstone', collection_text='insta_rainbow'):

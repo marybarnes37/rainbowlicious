@@ -98,15 +98,17 @@ def add_daily_weather():
             skipped += 1
             continue
         if r.status_code == 200:
-            if(r.json()['errors']):
-                print("[ERROR RETURNED FROM API REQUEST]: {}".format(r.json()['errors'][0]['error']['message']))
-                with open('weather_errors_and_status_log.txt', "a") as myfile:
-                    myfile.write("[ERROR RETURNED FROM API REQUEST]: {}".format(r.json()['errors'][0]['error']['message']))
-                skipped += 1
-            else:
-                daily_weather = r.json()['observations']
-                collection.update_one({"_id": record["_id"]}, {"$set": {'daily_weather': daily_weather }})
-                added_counter += 1
+            try:
+                if(r.json()['errors']):
+                    print("[ERROR RETURNED FROM API REQUEST]: {}".format(r.json()['errors'][0]['error']['message']))
+                    with open('weather_errors_and_status_log.txt', "a") as myfile:
+                        myfile.write("[ERROR RETURNED FROM API REQUEST]: {}".format(r.json()['errors'][0]['error']['message']))
+                    skipped += 1
+            except:
+                pass
+            daily_weather = r.json()['observations']
+            collection.update_one({"_id": record["_id"]}, {"$set": {'daily_weather': daily_weather }})
+            added_counter += 1
         else:
             print('encountered status code {} for url {}'.format(r.status_code, url))
             with open('weather_errors_and_status_log.txt', "a") as myfile:

@@ -81,15 +81,15 @@ def add_daily_weather():
         url = construct_weather_url(record)
         try:
             try:
-                r = requests.get(url, proxies=proxies).json()
+                r = requests.get(url, proxies=proxies)
             except Exception as e1:
                 print("sleeping for 5 seconds because request failed, exception: {}".format(e1))
                 with open('weather_errors_and_status_log.txt', "a") as myfile:
                     myfile.write(e1)
-                r = requests.get(url, proxies=proxies).json()
                 time.sleep(5)
+                r = requests.get(url, proxies=proxies)
         except Exception as e2:
-            print("sleeping for 5 seconds because request failed, exception: {}".format(e2))
+            print("SKIPPING because request failed, exception: {}".format(e2))
             with open('weather_errors_and_status_log.txt', "a") as myfile:
                 myfile.write(e2)
             time.sleep(5)
@@ -102,7 +102,7 @@ def add_daily_weather():
                         myfile.write("[ERROR RETURNED FROM API REQUEST]: " + r['errors'][0]['error']['message'])
             except:
                 continue
-            daily_weather = r['observations']
+            daily_weather = r.json()['observations']
             collection.update_one({"_id": record["_id"]}, {"$set": {'daily_weather': daily_weather }})
             added_counter += 1
             total = collection.find({"daily_weather" : { "$exists" : True }}).count()

@@ -112,4 +112,4 @@ def construct_weather_url(record):
 def main(client_text='capstone', collection_text='insta_rainbow'):
     client, collection = setup_mongo_client(client_text, collection_text)
     add_local_dates(collection)
-    add_daily_weather(collection)
+    # add_daily_weather(collection)

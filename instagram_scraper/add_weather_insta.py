@@ -58,7 +58,7 @@ def add_local_dates():
     deleted_counter = 0
     for record in cursor:
         local_datetime = get_time_zone(record, tzwhere_obj)
-        if local_datetime = None:
+        if local_datetime == None:
             collection.delete_one({"_id": record["_id"]})
             deleted_counter += 1
         else:

@@ -119,6 +119,8 @@ def construct_weather_url(record):
     url = "http://api.weather.com/v1/geocode/" + str(lat) + "/" + str(lon)+ \
     "/observations/historical.json?apiKey=" + my_apikey + \
     "&language=en-US" + "&startDate="+str(startDate)
+    print(url)
+    print(type(url))
     return url
 
 def main(client_text='capstone', collection_text='insta_rainbow'):

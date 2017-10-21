@@ -126,7 +126,7 @@ def construct_weather_url(record):
     url = "http://api.weather.com/v1/geocode/" + str(lat) + "/" + str(lon)+ \
     "/observations/historical.json?apiKey=" + my_apikey + \
     "&language=en-US" + "&startDate="+str(startDate)[:-4]
-    url = string.strip(url)
+    url = str.strip(url)
     print(url)
     return url
 

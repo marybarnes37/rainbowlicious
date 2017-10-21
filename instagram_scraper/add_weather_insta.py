@@ -99,9 +99,9 @@ def add_daily_weather():
             continue
         if r.status_code == 200:
             if(r['errors']):
-                print("[ERROR RETURNED FROM API REQUEST]: {}".format(r['errors'][0]['error']['message']))
+                print("[ERROR RETURNED FROM API REQUEST]: {}".format(r.json()['errors'][0]['error']['message']))
                 with open('weather_errors_and_status_log.txt', "a") as myfile:
-                    myfile.write("[ERROR RETURNED FROM API REQUEST]: {}".format(r['errors'][0]['error']['message']))
+                    myfile.write("[ERROR RETURNED FROM API REQUEST]: {}".format(r.json()['errors'][0]['error']['message']))
                 skipped += 1
             else:
                 daily_weather = r.json()['observations']

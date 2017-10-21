@@ -7,6 +7,8 @@ import pytz
 from tzwhere import tzwhere
 from geopy.distance import vincenty
 import datetime
+import os
+import sys
 
 def setup_mongo_client(db_name, collection_name, client=None, address='mongodb://localhost:27017/'):
     if not client:

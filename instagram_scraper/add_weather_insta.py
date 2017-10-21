@@ -109,11 +109,11 @@ def add_daily_weather():
             daily_weather = r.json()['observations']
             collection.update_one({"_id": record["_id"]}, {"$set": {'daily_weather': daily_weather }})
             added_counter += 1
-            total = collection.find({"daily_weather" : { "$exists" : True }}).count()
         else:
             print('encountered status code {} for url'.format(r.status_code))
             with open('weather_errors_and_status_log.txt', "a") as myfile:
                 myfile.write('encountered status code {} for url'.format(r.status_code))
+        total = collection.find({"daily_weather" : { "$exists" : True }}).count()
         print('added {} weather dicts and skipped {}'.format(added_counter, skipped))
         print('a total of {} local dates have been added'.format(total))
         time.sleep(3)

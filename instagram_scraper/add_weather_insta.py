@@ -77,6 +77,7 @@ def add_daily_weather():
     client, collection = setup_mongo_client('capstone', 'insta_rainbow')
     cursor = collection.find({"start_date_local" : { "$exists" : True }, "daily_weather": {"$exists" : False}}, no_cursor_timeout=True)
     added_counter = 0
+    skipped = 0
     proxies = {'http' : get_proxy()}
     for record in cursor:
         url = construct_weather_url(record)
@@ -94,6 +95,7 @@ def add_daily_weather():
             with open('weather_errors_and_status_log.txt', "a") as myfile:
                 myfile.write(str(e2))
             time.sleep(5)
+            skipped += 1
             continue
         if r.status_code == 200:
             try:
@@ -102,12 +104,17 @@ def add_daily_weather():
                     with open('weather_errors_and_status_log.txt', "a") as myfile:
                         myfile.write("[ERROR RETURNED FROM API REQUEST]: " + r['errors'][0]['error']['message'])
             except:
+                skipped += 1
                 continue
             daily_weather = r.json()['observations']
             collection.update_one({"_id": record["_id"]}, {"$set": {'daily_weather': daily_weather }})
             added_counter += 1
             total = collection.find({"daily_weather" : { "$exists" : True }}).count()
-        print('added {} urls'.format(added_counter))
+        else:
+            print('encountered status code {} for url'.format(r.status_code))
+            with open('weather_errors_and_status_log.txt', "a") as myfile:
+                myfile.write('encountered status code {} for url'.format(r.status_code))
+        print('added {} weather dicts and skipped {}'.format(added_counter, skipped))
         print('a total of {} local dates have been added'.format(total))
         time.sleep(3)
 

@@ -49,7 +49,7 @@ def get_time_zone(record, tzwhere_obj):
 
 
 def add_local_dates():
-    client, collection = setup_mongo_client(client_text='capstone', collection_text='insta_rainbow')
+    client, collection = setup_mongo_client('capstone', 'insta_rainbow')
     cursor = collection.find({"start_date_local" : { "$exists" : False }}, no_cursor_timeout=True)
     tzwhere_obj = tzwhere.tzwhere()
     added_counter = 0
@@ -64,7 +64,7 @@ def add_local_dates():
 
 
 def add_daily_weather():
-    client, collection = setup_mongo_client(client_text='capstone', collection_text='insta_rainbow')
+    client, collection = setup_mongo_client('capstone', 'insta_rainbow')
     cursor = collection.find({"start_date_local" : { "$exists" : True }, "daily_weather": {"$exists" : False}}, no_cursor_timeout=True)
     added_counter = 0
     proxies = get_proxy()

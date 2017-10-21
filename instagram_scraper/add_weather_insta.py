@@ -1,0 +1,109 @@
+from pymongo import MongoClient
+import pandas as pd
+import reverse_geocoder
+import pickle
+import time
+import pytz
+from tzwhere import tzwhere
+from geopy.distance import vincenty
+import datetime
+
+def setup_mongo_client(db_name, collection_name, client=None, address='mongodb://localhost:27017/'):
+    if not client:
+        client = MongoClient(address)
+    else:
+        client = client
+    db = client[db_name]
+    collection = db[collection_name]
+    return client, collection
+
+def get_api_key():
+    path = os.path.join(os.environ['HOME'],'weather.txt')
+    with open(path,'rb') as f:
+        api_key = f.readline().strip()
+    return api_key
+
+
+def get_proxy():
+    path = os.path.join(os.environ['HOME'],'proxy.txt')
+    with open(path,'rb') as f:
+        proxy = f.readline().strip()
+    return proxy
+
+
+def get_time_zone(record, tzwhere_obj):
+    lat = record['latitude']
+    lon = record['longitude']
+    timezone_str = tzwhere_obj.tzNameAt(float(lat), float(lon))
+    if timezone_str == None:
+        timezone_str = tzwhere_obj.tzNameAt(float(lat)-3, float(lon)-3)
+        if timezone_str == None:
+            timezone_str = tzwhere_obj.tzNameAt(float(lat)+3, float(lon)+3)
+            if timezone_str == None:
+                timezone_str = tzwhere_obj.tzNameAt(float(lat)-3, float(lon)+3)
+                if timezone_str == None:
+                    timezone_str = tzwhere_obj.tzNameAt(float(lat)+3, float(lon)-3)
+    local_tz = pytz.timezone(timezone_str)
+    utc_time = record['datetime']
+    return local_tz.fromutc(utc_time)
+
+
+def add_local_dates(collection):
+    cursor = collection.find({"start_date_local" : { "$exists" : False }}, no_cursor_timeout=True)
+    tzwhere_obj = tzwhere.tzwhere()
+    added_counter = 0
+    for record in cursor:
+        local_datetime = get_time_zone(record, tzwhere_obj)
+        string_local_datetime = local_datetime.strftime('%Y%m%d %Z')
+        collection.update_one({"_id": record["_id"]}, {"$set": {'start_date_local': string_local_datetime }})
+        added_counter += 1
+        total = collection.find({"start_date_local" : { "$exists" : True }}).count()
+        print('added {} local dates'.format(added_counter))
+        print('a total of {} local dates have been added'.format(total))
+
+
+def add_daily_weather(collection):
+    cursor = collection.find({"start_date_local" : { "$exists" : True }, "daily_weather": {"$exists" : False}}}, no_cursor_timeout=True)
+    added_counter = 0
+    proxies = get_proxy()
+    for record in cursor:
+        url = construct_weather_url(record)
+        try:
+            try:
+                r = requests.get(url, proxies=proxies).json()
+            except Exception as e1:
+                print("sleeping for 5 seconds because request failed, exception: {}".format(e1))
+                r = requests.get(url, proxies=proxies).json()
+                time.sleep(5)
+        except Exception as e2:
+            print("sleeping for 5 seconds because request failed, exception: {}".format(e2))
+            time.sleep(5)
+            continue
+        if r.status_code == 200:
+            try:
+                if(r['errors']):
+                    print("[ERROR RETURNED FROM API REQUEST]: " + r['errors'][0]['error']['message'])
+            except:
+                continue
+            daily_weather = r['observations']
+            collection.update_one({"_id": record["_id"]}, {"$set": {'daily_weather': daily_weather }})
+            added_counter += 1
+            total = collection.find({"daily_weather" : { "$exists" : True }}).count()
+        print('added {} urls'.format(added_counter))
+        print('a total of {} local dates have been added'.format(total))
+        time.sleep(3)
+
+def construct_weather_url(record):
+    my_apikey = get_api_key()
+    lat = record['latitude']
+    lon = record['longitude']
+    startDate = record['start_date_local']
+    url = "http://api.weather.com/v1/geocode/" + str(lat) + "/" + str(lon)+ \
+    "/observations/historical.json?apiKey=" + my_apikey + \
+    "&language=en-US" + "&startDate="+str(startDate)
+    return url
+
+def main(client_text='capstone', collection_text='insta_rainbow'):
+    client, collection = setup_mongo_client(client_text, collection_text)
+    add_local_dates(collection)
+    add_daily_weather(collection)

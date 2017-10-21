@@ -109,9 +109,7 @@ def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainb
                     photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
                     urllib.urlretrieve(photo_url, photo_filename)
                     photo_dict[photo_id] = [farm, server, photo_id, secret, order]
-                    print('added to dict')
                     collection.insert_one({'raw_json': json, 'relevance_order' : order})
-                    print('added to mongo')
                 if j % 10 == 0:
                     total = collection.find().count()
                     print("at {}_{} iterations have added {} documents to the collection".format(i,j, total))
@@ -122,61 +120,53 @@ def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainb
         pickle.dump(photo_dict, f)
 
 
-def label_photos(pickled_file_name="sea_radial_photodict_precheck.pkl"):
-    with open(pickled_file_name, "rb") as f:
-        photo_dict = pickle.load(f)
+def label_photos(collection, num_pages=93):
     counter = 0
-    for photo_id in photo_dict.iterkeys():
-        photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_radial_photos/{}'.format(photo_id)
-        img = Image.open(photo_filename)
-        img.show()
-        photo_dict[photo_id].append(raw_input("Enter 1 for rainbow or 0 for not rainbow: "))
-        img.close()
-        os.system('pkill Preview')
-        counter +=1
-        if counter == 4:
-            break
-    with open("verified_sea_radial_photodict.pkl",'wb') as f:
-        pickle.dump(photo_dict, f)
+    for i in range(1, num_pages+1)
+        cursor = collection.find({ "label" : { "$exists" : False }, "raw_json" : { "$exists" : True },
+                            "relevance_order": {"$startswith": i }}, no_cursor_timeout=True)
+        for record in cursor:
+            photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_radial_photos/{}_{}.jpg'.format(cursor['relevance_order'], cursor['raw_json']['id'])
+            img = Image.open(photo_filename)
+            img.show()
+            collection.update_one({"_id": record["_id"]}, {"$set": {'label': raw_input("Enter 1 for rainbow or 0 for not rainbow: ")}})
+            img.close()
+            os.system('pkill Preview') # find a way to close image first, or do this with matplotlib
+            counter +=1
+            if counter == 4:
+                break
 
-
-def get_flickr_json(collection, api_key, group_ids, pages):
-    url = 'https://api.flickr.com/services/rest'
-    for j in range():
-        params = {'method':'flickr.photos.search',
+def add_datetimes(collection):
+    cursor = collection.find({ "label" : { "$exists" : True }, "datetime" : { "$exists" : False }}, no_cursor_timeout=True)
+    api_key, secret_api = get_api_key()
+    api_url = 'https://api.flickr.com/services/rest'
+    counter = 0
+    for record in cursor:
+        params = {'method':'', # figure out method call and parameters
                   'api_key':api_key,
-                  'perpage':100,
+                  'extras': '',
                   'format':'json',
-                  'lat': '47.606',
-                  'lon': '-122.332',
-                  'radius': '48',
-                  'has_geo': '1',
-                  'geo_context': '2' , # try without this too
-                  'min_taken_date': '1350172800',
-                  'max_taken_date': '1507939200',
-                  'nojsoncallback':1,
-                  'page':j}
-        r = requests.get(url, params=params)
+                  'nojsoncallback':1}
+        r = requests.get(api_url, params=params)
         if r.status_code == 200:
-            collection.insert_one(r.json())
-            print("gathered page {}".format(j))
-            time.sleep(7)
+            collection.update_one({"_id": record["_id"]}, {"$set": {'date_info': r.json()}}) # is this the best format in whic to enter it?
         else:
-            with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/flickrscraper/status_code_log.txt', "a") as myfile:
-                myfile.write("status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
-            print('encountered status code {}'.format(r.status_code))
-            return None
-        if j % 10 == 0:
-            total = collection.find().count()
-            print("added {} documents to the collection".format(total))
-    print("gathered all of group id {}".format(group_ids[i]))
-    total = collection.find().count()
-    print('finished gathering a total of {} documents'.format(total))
+            print("status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
+        total = collection.find().count()
+        counter += 1
+        print("at {} iterations have added {} documents to the collection".format(counter, total))
+        time.sleep(5)
+
+def remove_unknown_added_dates(collection):
+
+
 
 
 def main():
     api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
-    dl_and_create_dict_text(collection)
-    # get_flickr_json(collection, api_key, group_ids, pages)
+    # dl_and_create_dict_text(collection)
+    label_photos(collection)
+    add_datetimes(collection)
+    remove_unknown_added_dates(collection)
     client.close()

@@ -70,6 +70,7 @@ def get_closest_stations(df):
         df.loc[i, 'closest_station'] = station
         df.loc[i, 'miles_to_station'] = miles
     df = df[df['miles_to_station'] <= 30]
+    df[df['closest_station'] != 'KMMM'] # mammoth falls, Yellowstone
     return df
 
 
@@ -176,9 +177,8 @@ def main(client_text='capstone', collection_text='flickr_rainbow_correct'):
     # pickle_df(df, 'flickr_stage4')
     df = pd.read_pickle("/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/old_pickles/flickr_with_stations.p")
     df = df[df['miles_to_station'] <= 30]
-    df = df[df['closest_station'] != 'KMMM'] # yellowstone mammoth falls 
+    df = df[df['closest_station'] != 'KMMM'] # yellowstone mammoth falls
     df = add_time_window(df)
     print('added utc time window')
-    print(df.shape)
     pickle_df(df, 'flickr_with_station_and_time')
     # client.close()

@@ -73,16 +73,22 @@ def add_daily_weather(collection):
                 r = requests.get(url, proxies=proxies).json()
             except Exception as e1:
                 print("sleeping for 5 seconds because request failed, exception: {}".format(e1))
+                with open('weather_errors_and_status_log.txt', "a") as myfile:
+                    myfile.write(e1)
                 r = requests.get(url, proxies=proxies).json()
                 time.sleep(5)
         except Exception as e2:
             print("sleeping for 5 seconds because request failed, exception: {}".format(e2))
+            with open('weather_errors_and_status_log.txt', "a") as myfile:
+                myfile.write(e2)
             time.sleep(5)
             continue
         if r.status_code == 200:
             try:
                 if(r['errors']):
                     print("[ERROR RETURNED FROM API REQUEST]: " + r['errors'][0]['error']['message'])
+                    with open('weather_errors_and_status_log.txt', "a") as myfile:
+                        myfile.write("[ERROR RETURNED FROM API REQUEST]: " + r['errors'][0]['error']['message'])
             except:
                 continue
             daily_weather = r['observations']

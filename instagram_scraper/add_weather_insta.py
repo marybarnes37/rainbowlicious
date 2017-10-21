@@ -86,13 +86,13 @@ def add_daily_weather():
             except Exception as e1:
                 print("sleeping for 5 seconds because request failed, exception: {}".format(str(e1)))
                 with open('weather_errors_and_status_log.txt', "a") as myfile:
-                    myfile.write(e1)
+                    myfile.write(str(e1))
                 time.sleep(5)
                 r = requests.get(url, proxies=proxies)
         except Exception as e2:
             print("SKIPPING because request failed, exception: {}".format(str(e2)))
             with open('weather_errors_and_status_log.txt', "a") as myfile:
-                myfile.write(e2)
+                myfile.write(str(e2))
             time.sleep(5)
             continue
         if r.status_code == 200:

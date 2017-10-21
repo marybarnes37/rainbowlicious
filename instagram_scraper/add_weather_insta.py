@@ -48,7 +48,8 @@ def get_time_zone(record, tzwhere_obj):
     return local_tz.fromutc(utc_time)
 
 
-def add_local_dates(collection):
+def add_local_dates():
+    client, collection = setup_mongo_client(client_text, collection_text)
     cursor = collection.find({"start_date_local" : { "$exists" : False }}, no_cursor_timeout=True)
     tzwhere_obj = tzwhere.tzwhere()
     added_counter = 0
@@ -62,7 +63,8 @@ def add_local_dates(collection):
         print('a total of {} local dates have been added'.format(total))
 
 
-def add_daily_weather(collection):
+def add_daily_weather():
+    client, collection = setup_mongo_client(client_text, collection_text)
     cursor = collection.find({"start_date_local" : { "$exists" : True }, "daily_weather": {"$exists" : False}}}, no_cursor_timeout=True)
     added_counter = 0
     proxies = get_proxy()

@@ -168,6 +168,7 @@ def get_photo_info():
             collection.update_one({"_id": record["_id"]}, {"$set": {'photo_info': r.json()}})
         else:
             skip_counter += 1
+            print("photo_id: {}, secret: {}".format(photo_id, secret))
             print("SKIPPING: status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
         total = collection.find().count()
         print("{} added this round for a total of {} documents in collection ({} skipped)".format(counter, total, skip_counter))

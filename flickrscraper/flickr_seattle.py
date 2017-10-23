@@ -146,7 +146,7 @@ def label_photos(collection, num_pages=93):
             if counter == 4:
                 break
 
-def get_photo_info(collection):
+def get_photo_info():
     api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
     cursor = collection.find({ "raw_json" : { "$exists" : True }, "photo_info" : { "$exists" : False }}, no_cursor_timeout=True)
@@ -176,7 +176,7 @@ def get_photo_info(collection):
 
 
 
-def remove_unknown_added_dates(collection):
+def remove_unknown_added_dates():
     api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
     cursor = collection.find( {"photo_info" : { "$exists" : True },  "date_check" : { "$exists" : False }}, no_cursor_timeout=True)
@@ -190,7 +190,7 @@ def main():
     api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
     # dl_and_create_dict_text(collection)
-    get_photo_info(collection)
-    # label_photos(collection)
+    get_photo_info()
+    # label_photos()
     # remove_unknown_added_dates(collection)
     client.close()

@@ -31,19 +31,19 @@ def setup_mongo_client(db_name, collection_name, address='mongodb://localhost:27
     collection = db[collection_name]
     return client, collection
 
-# def get_api_key():
-#     path = os.path.join(os.environ['HOME'],'flickr.txt')
-#     #with open('~/flickr.txt', 'rb') as f:
-#     with open(path,'rb') as f:
-#         api_key = f.readline().strip()
-#         secret = f.readline().strip()
-#     return api_key, secret
-
 def get_api_key():
-    with open('/Users/marybarnes/.ssh/flickr.txt', 'rb') as f:
+    path = os.path.join(os.environ['HOME'],'flickr.txt')
+    #with open('~/flickr.txt', 'rb') as f:
+    with open(path,'rb') as f:
         api_key = f.readline().strip()
         secret = f.readline().strip()
     return api_key, secret
+
+# def get_api_key():
+#     with open('/Users/marybarnes/.ssh/flickr.txt', 'rb') as f:
+#         api_key = f.readline().strip()
+#         secret = f.readline().strip()
+#     return api_key, secret
 
 def dl_and_create_dict_radius(num_pages=4, search_term='rainbow', lat=47.60, lon=-122.33):
     api_key, secret_api = get_api_key()

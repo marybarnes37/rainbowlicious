@@ -160,8 +160,7 @@ def get_photo_info():
                   'api_key':api_key,
                   'id': photo_id,
                   'secret': secret,
-                  'format':'json',
-                  'nojsoncallback':1}
+                  'format':'json'}
         r = requests.get(api_url, params=params)
         if r.status_code == 200 and 'photo' in r.json():
             counter += 1

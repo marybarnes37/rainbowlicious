@@ -163,7 +163,7 @@ def get_photo_info(collection):
                   'format':'json',
                   'nojsoncallback':1}
         r = requests.get(api_url, params=params)
-        if r.status_code == 200 and if 'photo' in r.json():
+        if r.status_code == 200 and 'photo' in r.json():
             counter += 1
             collection.update_one({"_id": record["_id"]}, {"$set": {'photo_info': r.json()}})
         else:

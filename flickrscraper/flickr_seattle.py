@@ -179,7 +179,7 @@ def get_photo_info(collection):
 def remove_unknown_added_dates(collection):
     api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
-    cursor = collection.find( {}"photo_info" : { "$exists" : True }, { "date_check" : { "$exists" : False },}, no_cursor_timeout=True)
+    cursor = collection.find( {"photo_info" : { "$exists" : True },  "date_check" : { "$exists" : False }}, no_cursor_timeout=True)
     client.close()
     pass
 

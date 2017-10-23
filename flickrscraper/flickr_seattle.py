@@ -154,13 +154,14 @@ def get_photo_info():
     counter = 0
     skip_counter = 0
     for record in cursor:
-        photo_id = record['raw_json']['id']
-        secret = record['raw_json']['secret']
+        photo_id = record['raw_json']['id'].strip()
+        secret = record['raw_json']['secret'].strip()
         params = {'method':'flickr.photos.getInfo',
                   'api_key':api_key,
                   'id': photo_id,
                   'secret': secret,
-                  'format':'json'}
+                  'format':'json',
+                  'nojsoncallback':1}
         r = requests.get(api_url, params=params)
         if r.status_code == 200 and 'photo' in r.json():
             counter += 1

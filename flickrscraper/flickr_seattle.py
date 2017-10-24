@@ -90,6 +90,7 @@ def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainb
                   'text': search_term,
                   'min_taken_date': 1350172800,
                   'max_taken_date': 1507939200,
+                  'extras': 'date_taken',
                   'nojsoncallback':1,
                   'sort' : 'relevance',
                   'page': i}
@@ -109,7 +110,7 @@ def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainb
                     photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
                     urllib.urlretrieve(photo_url, photo_filename)
                     photo_dict[photo_id] = [farm, server, photo_id, secret, order]
-                    collection.insert_one({'raw_json': json, 'relevance_order' : order})
+                    collection.insert_one({'raw_json': json, 'relevance_order':order})
                 if j % 10 == 0:
                     total = collection.find().count()
                     print("at {}_{} iterations have added {} documents to the collection".format(i,j, total))
@@ -146,40 +147,40 @@ def label_photos(collection, num_pages=93):
             if counter == 4:
                 break
 
-def get_photo_info():
-    api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
-    cursor = collection.find({ "raw_json" : { "$exists" : True }, "photo_info" : { "$exists" : False }}, no_cursor_timeout=True)
-    api_url = 'https://api.flickr.com/services/rest'
-    counter = 0
-    skip_counter = 0
-    for record in cursor:
-        photo_id = record['raw_json']['id'].strip()
-        secret = record['raw_json']['secret'].strip()
-        params = {'method':'flickr.photos.getInfo',
-                  'api_key':api_key,
-                  'id': photo_id,
-                  'secret': secret,
-                  'format':'json',
-                  'nojsoncallback':1}
-        r = requests.get(api_url, params=params)
-        if r.status_code == 200 and 'photo' in r.json():
-            counter += 1
-            collection.update_one({"_id": record["_id"]}, {"$set": {'photo_info': r.json()}})
-        else:
-            skip_counter += 1
-            print("photo_id: {}, secret: {}".format(photo_id, secret))
-            print("SKIPPING: status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
-        total = collection.find().count()
-        print("{} added this round for a total of {} documents in collection ({} skipped)".format(counter, total, skip_counter))
-        time.sleep(3)
-    client.close()
+# def get_photo_info():
+#     api_key, secret = get_api_key()
+#     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
+#     cursor = collection.find({ "raw_json" : { "$exists" : True }, "photo_info" : { "$exists" : False }}, no_cursor_timeout=True)
+#     api_url = 'https://api.flickr.com/services/rest'
+#     counter = 0
+#     skip_counter = 0
+#     for record in cursor:
+#         photo_id = record['raw_json']['id'].strip()
+#         secret = record['raw_json']['secret'].strip()
+#         params = {'method':'flickr.photos.getInfo',
+#                   'api_key':api_key,
+#                   'id': int(photo_id),
+#                   'secret': secret,
+#                   'format':'json',
+#                   'nojsoncallback':1}
+#         r = requests.get(api_url, params=params)
+#         if r.status_code == 200 and 'photo' in r.json():
+#             counter += 1
+#             collection.update_one({"_id": record["_id"]}, {"$set": {'photo_info': r.json()}})
+#         else:
+#             skip_counter += 1
+#             print("photo_id: {}, secret: {}".format(photo_id, secret))
+#             print("SKIPPING: status code: {}\n {} \n{}".format(r.status_code, r.content, r.headers))
+#         total = collection.find().count()
+#         print("{} added this round for a total of {} documents in collection ({} skipped)".format(counter, total, skip_counter))
+#         time.sleep(3)
+#     client.close()
 
 
 
 def remove_unknown_added_dates():
     api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     cursor = collection.find( {"photo_info" : { "$exists" : True },  "date_check" : { "$exists" : False }}, no_cursor_timeout=True)
     client.close()
     pass
@@ -189,9 +190,9 @@ def remove_unknown_added_dates():
 
 def main():
     api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle', address='mongodb://localhost:27017/')
-    # dl_and_create_dict_text(collection)
-    get_photo_info()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    dl_and_create_dict_text(collection)
+    # get_photo_info()
     # label_photos()
     # remove_unknown_added_dates(collection)
     client.close()

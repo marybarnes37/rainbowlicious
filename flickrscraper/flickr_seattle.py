@@ -98,8 +98,8 @@ def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
                 photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
                 r_photo = requests.get(photo_url)
                 if r_photo.status_code == 200:
-                    i = Image.open(StringIO(r_photo.content))
-                    i.save(photo_filename)
+                    img = Image.open(StringIO(r_photo.content))
+                    img.save(photo_filename)
                     photo_dict[photo_id] = [farm, server, photo_id, secret, order]
                     collection.insert_one({'raw_json': json, 'relevance_order':order})
                 else:

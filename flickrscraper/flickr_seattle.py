@@ -12,17 +12,19 @@ import psutil
 import subprocess
 import re
 from bson.objectid import ObjectId
-# from pysolar.solar import get_altitude
+from pysolar.solar import get_altitude
 import datetime
 import calendar
 import pytz
 from tzwhere import tzwhere
 import os
 import datetime
-from StringIO import StringIO
-# from io import StringIO
+# from StringIO import StringIO
+from io import StringIO
 
-#use database "capstone" and collection "flickr_rainbow"
+
+# for getting missing images ls -la | grep 172B | cut -c57- | perl -ne '/.*_(.*).jpg/; print "$1\n"'
+
 
 def setup_mongo_client(db_name, collection_name, address='mongodb://localhost:27017/'):
     """ Return Mongo client and collection for record insertion.
@@ -163,12 +165,12 @@ def create_dataframe_to_check_duplicates(collection):
         local_epoch = int(time.mktime(time.strptime(df.loc[i, 'local_datetime_taken' ], pattern)))
         df.loc[i, 'local_epoch'] = local_epoch
     df = df.sort_values(['local_epoch'])
-    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_2.p")
+    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_first_half.p")
     return df
 
 
-def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_2.txt",
-                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_2.p"):
+def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_first_half.txt",
+                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_first_half.p"):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     if pickled_df:
         df = pd.read_pickle(pickled_df)
@@ -294,16 +296,16 @@ def mark_bad_solar_angle():
 
 def label_photos(num_pages=93):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    counter = 0
     skip_count = 0
     for i in range(1, num_pages+1):
         # { "$regex" : '/^{}_/'.format(i) }
-        cursor = collection.find({ "label" : { "$exists" : False }, "bad_solar_angle" : 0,
+        cursor = collection.find({ "label" : { "$exists" : False }, "bad_solar_angle" : 1,
                                     "relevance_order": { "$regex" : '^{}\_'.format(i) }}, no_cursor_timeout=True)
         print(cursor.count())
         for record in cursor:
             try:
                 photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_text_photos/{}_{}.jpg'.format(record['relevance_order'], record['raw_json']['id'])
+                print('opening image')
                 img = Image.open(photo_filename)
             except Exception as e:
                 print(e)
@@ -311,13 +313,12 @@ def label_photos(num_pages=93):
                 skip_count += 1
                 print('skipcount is {}'.format(skip_count))
                 continue
+            print('showing image')
             img.show()
             collection.update_one({"_id": record["_id"]}, {"$set": {'label': input("Enter 1 for rainbow or 0 for not rainbow: ")}})
             img.close()
-            os.system('pkill Preview') # find a way to close image first, or do this with matplotlib
-            counter +=1
-            if counter == 4:
-                break
+            os.system('pkill Preview')
+
 
 
 def add_weather_data():

@@ -69,7 +69,7 @@ def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
     api_url = 'https://api.flickr.com/services/rest'
     photo_dict = {}
     skipped_counter = 0
-    pg_num = 1
+    page_num = 1
     for i in range(94, num_pages+94):
         params = {'method':'flickr.photos.search',
                   'api_key':api_key,

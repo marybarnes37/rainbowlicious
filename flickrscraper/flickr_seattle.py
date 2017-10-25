@@ -84,35 +84,36 @@ def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
         strings = ['ainbow', 'cloud', 'over']
         page_num += 1
         for j in range(100):
-            try:
-                json = r.json()['photos']['photo'][j]
-                title = json['title']
-                if any(x in title for x in strings):
-                    order = "{}_{}".format(i, j)
-                    photo_id = json['id']
-                    server = json['server']
-                    secret = json['secret']
-                    farm = json['farm']
-                    photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
-                    photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
-                    r = requests.get(photo_url)
-                    if r.status_code == 200:
-                        i = Image.open(StringIO(r.content))
-                        i.save(photo_filename)
-                        photo_dict[photo_id] = [farm, server, photo_id, secret, order]
-                        collection.insert_one({'raw_json': json, 'relevance_order':order})
-                    else:
-                        print(r.status_code)
-                        print(r.content)
-                        skipped_counter += 1
-                        continue
-                    # urllib.urlretrieve(photo_url, photo_filename)
-                if j % 10 == 0:
-                    total = collection.find().count()
-                    print("at {}_{} iterations have added {} documents to the collection".format(i,j, total))
-                    print("{} images have been skipped".format(skipped_counter))
-            except:
-                break
+            # try:
+            json = r.json()['photos']['photo'][j]
+            title = json['title']
+            if any(x in title for x in strings):
+                order = "{}_{}".format(i, j)
+                photo_id = json['id']
+                server = json['server']
+                secret = json['secret']
+                farm = json['farm']
+                photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
+                photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
+                r_photo = requests.get(photo_url)
+                if r_photo.status_code == 200:
+                    i = Image.open(StringIO(r_photo.content))
+                    i.save(photo_filename)
+                    photo_dict[photo_id] = [farm, server, photo_id, secret, order]
+                    collection.insert_one({'raw_json': json, 'relevance_order':order})
+                else:
+                    print(photo_url)
+                    print(r_photo.status_code)
+                    print(r_photo.content)
+                    skipped_counter += 1
+                    continue
+                # urllib.urlretrieve(photo_url, photo_filename)
+            if j % 10 == 0:
+                total = collection.find().count()
+                print("at {}_{} iterations have added {} documents to the collection".format(i,j, total))
+                print("{} images have been skipped".format(skipped_counter))
+            # except:
+            #     break
             time.sleep(5)
     with open("sea_text_photodict_precheck_second_batch.pkl",'wb') as f:
         pickle.dump(photo_dict, f)

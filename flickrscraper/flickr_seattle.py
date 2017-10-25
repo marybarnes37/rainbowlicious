@@ -12,14 +12,15 @@ import psutil
 import subprocess
 import re
 from bson.objectid import ObjectId
-# from pysolar.solar import get_altitude
+from pysolar.solar import get_altitude
 import datetime
 import calendar
 import pytz
 from tzwhere import tzwhere
 import os
 import datetime
-from StringIO import StringIO
+# from StringIO import StringIO
+from io import StringIO
 
 #use database "capstone" and collection "flickr_rainbow"
 
@@ -64,14 +65,24 @@ def view_duplicate_timestamps(time):
     client.close()
 
 
+def delete_field(field):
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
+    collection.update_many({}, {'$unset': {field: ''}})
+    client.close()
+
+
+def delete_fields(fields = ['duplicate', 'label', 'pride_day', 'snoqualmie', 'raw_json.solar_angle', 'bad_solar_angle']):
+    for field in fields:
+        delete_field(field)
+
 def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
     api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     api_url = 'https://api.flickr.com/services/rest'
     photo_dict = {}
     skipped_counter = 0
-    page_num = 1
-    for i in range(94, num_pages+94):
+    page_num = 7
+    for i in range(100, num_pages+87):
         params = {'method':'flickr.photos.search',
                   'api_key':api_key,
                   'format':'json',
@@ -85,36 +96,36 @@ def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
         strings = ['ainbow', 'cloud', 'over', 'ain', 'windy', 'storm']
         page_num += 1
         for j in range(100):
-            # try:
-            json = r.json()['photos']['photo'][j]
-            title = json['title']
-            if any(x in title for x in strings):
-                order = "{}_{}".format(i, j)
-                photo_id = json['id']
-                server = json['server']
-                secret = json['secret']
-                farm = json['farm']
-                photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
-                photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
-                r_photo = requests.get(photo_url)
-                if r_photo.status_code == 200:
-                    img = Image.open(StringIO(r_photo.content))
-                    img.save(photo_filename)
-                    photo_dict[photo_id] = [farm, server, photo_id, secret, order]
-                    collection.insert_one({'raw_json': json, 'relevance_order':order})
-                else:
-                    print(photo_url)
-                    print(r_photo.status_code)
-                    print(r_photo.content)
-                    skipped_counter += 1
-                    continue
-                # urllib.urlretrieve(photo_url, photo_filename)
-            if j % 10 == 0:
-                total = collection.find().count()
-                print("at {}_{} iterations have added {} documents to the collection".format(i,j, total))
-                print("{} images have been skipped".format(skipped_counter))
-            # except:
-            #     break
+            try:
+                json = r.json()['photos']['photo'][j]
+                title = json['title']
+                if any(x in title for x in strings):
+                    order = "{}_{}".format(i, j)
+                    photo_id = json['id']
+                    server = json['server']
+                    secret = json['secret']
+                    farm = json['farm']
+                    photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
+                    photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
+                    r_photo = requests.get(photo_url)
+                    if r_photo.status_code == 200:
+                        img = Image.open(StringIO(r_photo.content))
+                        img.save(photo_filename)
+                        photo_dict[photo_id] = [farm, server, photo_id, secret, order]
+                        collection.insert_one({'raw_json': json, 'relevance_order':order})
+                    else:
+                        print(photo_url)
+                        print(r_photo.status_code)
+                        print(r_photo.content)
+                        skipped_counter += 1
+                        continue
+                    # urllib.urlretrieve(photo_url, photo_filename)
+                if j % 10 == 0:
+                    total = collection.find().count()
+                    print("at {}_{} iterations have added {} documents to the collection".format(i,j, total))
+                    print("{} images have been skipped".format(skipped_counter))
+            except:
+                break
             time.sleep(5)
     with open("sea_text_photodict_precheck_second_batch.pkl",'wb') as f:
         pickle.dump(photo_dict, f)
@@ -169,9 +180,11 @@ def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_gal
         obs_epoch = df.loc[i, 'local_epoch']
         if abs(obs_epoch - previous_epoch) < 1800:
             f.write(str(df.loc[i, '_id']) + '\n')
-        previous_epoch = obs_epoch
+        else:
+            previous_epoch = obs_epoch
     f.close()
     client.close()
+
 
 
 def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_2.txt"):
@@ -291,7 +304,6 @@ def label_photos(num_pages=93):
         for record in cursor:
             try:
                 photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_text_photos/{}_{}.jpg'.format(record['relevance_order'], record['raw_json']['id'])
-
                 img = Image.open(photo_filename)
             except Exception as e:
                 print(e)

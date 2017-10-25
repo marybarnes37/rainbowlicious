@@ -5,6 +5,7 @@ import requests
 import time
 from PIL import Image
 import io
+import pandas as pd
 import urllib
 import pickle
 import psutil
@@ -17,6 +18,7 @@ import calendar
 import pytz
 from tzwhere import tzwhere
 import os
+import datetime
 
 #use database "capstone" and collection "flickr_rainbow"
 
@@ -54,17 +56,17 @@ def get_api_key():
 
 
 
-def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainbow'):
-    api_key, secret_api = get_api_key()
+def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     api_url = 'https://api.flickr.com/services/rest'
     photo_dict = {}
-    for i in range(1, num_pages+1):
+    for i in range(93, num_pages+93):
         params = {'method':'flickr.photos.search',
                   'api_key':api_key,
                   'format':'json',
                   'text': search_term,
-                  'min_taken_date': 1350172800,
-                  'max_taken_date': 1507939200,
+                  'max_taken_date': 1350172799,
                   'extras': 'date_taken',
                   'nojsoncallback':1,
                   'sort' : 'relevance',
@@ -92,7 +94,7 @@ def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainb
             except:
                 break
             time.sleep(2)
-    with open("sea_text_photodict_precheck.pkl",'wb') as f:
+    with open("sea_text_photodict_precheck_second_batch.pkl",'wb') as f:
         pickle.dump(photo_dict, f)
 
 
@@ -111,33 +113,35 @@ def mark_unknown_dates():
             collection.update_one({"_id": record["_id"]}, {"$set": {'unknown_date': 0}})
             zero_counter += 1
         print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    total = collection.find({"unknown_date": 0}).count()
+    print("{} viable documents".format(total))
     client.close()
 
 
 
-def create_dataframe_to_check_duplicates():
+def create_dataframe_to_check_duplicates(collection):
     cursor = collection.find({"unknown_date": 0}, no_cursor_timeout=True)
     col = ['_id', 'local_datetime_taken']
     df = pd.DataFrame(columns=col)
     for record in cursor:
         df = df.append(pd.DataFrame([[record['_id'], record['raw_json']['datetaken']]],  columns=col), ignore_index=True)
     cursor.close()
-    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes.p")
-    return df
-
-
-def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates.txt",
-                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes.p"):
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
-    if pickled_df:
-        df = pd.read_pickle(pickled_df)
-    else:
-        df = create_dataframe_to_check_duplicates(collection)
     pattern = '%Y-%m-%d %H:%M:%S'
     for i in df.index:
         local_epoch = int(time.mktime(time.strptime(df.loc[i, 'local_datetime_taken' ], pattern)))
         df.loc[i, 'local_epoch'] = local_epoch
     df = df.sort_values(['local_epoch'])
+    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_2.p")
+    return df
+
+
+def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_2.txt",
+                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_2.p"):
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
+    if pickled_df:
+        df = pd.read_pickle(pickled_df)
+    else:
+        df = create_dataframe_to_check_duplicates(collection)
     f = open(duplicates_filename, 'w')
     previous_epoch = 0
     for i in df.index:
@@ -149,8 +153,8 @@ def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_gal
     client.close()
 
 
-def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates.txt"):
-    client, collection = setup_mongo_client('capstone', 'insta_rainbow')
+def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_2.txt"):
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     with open(duplicates_filename, 'r') as f:
         for _id in f:
             collection.update_one({"_id": ObjectId(_id.strip())}, {"$set": {"duplicate": 1}}, upsert=False)
@@ -158,7 +162,7 @@ def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/
 
 
 def mark_non_duplicates():
-    client, collection = setup_mongo_client('capstone', 'insta_rainbow')
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     collection.update_many({"unknown_date": 0, "duplicate": {"$exists" : False}}, {"$set": {"duplicate": 0}})
     total_dups = collection.find({"duplicate": 1}).count()
     total_non_dups = collection.find({"duplicate": 0}).count()
@@ -167,9 +171,8 @@ def mark_non_duplicates():
 
 
 def mark_pride():
-    api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    cursor = collection.find( "duplicate" : 0, "pride_day": : { "$exists" : False } }, no_cursor_timeout=True)
+    cursor = collection.find( {"duplicate" : 0, "pride_day" : { "$exists" : False } }, no_cursor_timeout=True)
     zero_counter = 0
     one_counter = 0
     for record in cursor:
@@ -180,13 +183,14 @@ def mark_pride():
             collection.update_one({"_id": record["_id"]}, {"$set": {'pride_day': 0}})
             zero_counter += 1
         print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    total = collection.find({"pride_day": 0}).count()
+    print("{} viable documents".format(total))
     client.close()
 
 
 def mark_snoqualmie():
-    api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    cursor = collection.find( "pride_day" : 0, "snoqualmie": : { "$exists" : False } }, no_cursor_timeout=True)
+    cursor = collection.find( {"pride_day" : 0, "snoqualmie" : { "$exists" : False } }, no_cursor_timeout=True)
     zero_counter = 0
     one_counter = 0
     for record in cursor:
@@ -197,6 +201,8 @@ def mark_snoqualmie():
             collection.update_one({"_id": record["_id"]}, {"$set": {'snoqualmie': 0}})
             zero_counter += 1
         print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    total = collection.find({"snoqualmie": 0}).count()
+    print("{} viable documents".format(total))
     client.close()
 
 
@@ -213,30 +219,30 @@ def lookup_lat_lon(station):
 
 
 def add_solar_angle(station="KBFI"):
-    api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    timezone = lookup_timezone(station)
+    local_tz = lookup_timezone(station)
     latitude, longitude = lookup_lat_lon(station)
-    cursor = collection.find( "snoqualmie" : 0, "solar_angle": : { "$exists" : False } }, no_cursor_timeout=True)
+    cursor = collection.find( {"snoqualmie" : 0}, no_cursor_timeout=True)
     pattern = '%Y-%m-%d %H:%M:%S'
     added_counter = 0
     for record in cursor:
         string_time = record['raw_json']['datetaken']
         dt_obj = datetime.datetime.strptime(string_time, pattern)
-        datetime =  local_tz.localize(dt_obj)
-        solar_angle = get_altitude(latitude, longitude, datetime)
+        date_time =  local_tz.localize(dt_obj)
+        solar_angle = get_altitude(latitude, longitude, date_time)
+        print(string_time)
+        print(date_time)
         print(solar_angle)
-        collection.update_one({"_id": record["_id"]}, {"$set": {'raw_json.solar_angle': solar_angle}})
-        record['raw_json']['solar_angle']
+        print("\n")
+        collection.update_one({"_id": record["_id"]}, {"$set": {"raw_json.solar_angle": solar_angle}})
         added_counter += 1
         print("added {}".format(added_counter))
     client.close()
 
 
 def mark_bad_solar_angle():
-    api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    cursor = collection.find( "solar_angle" : { "$exists" : True }, "bad_solar_angle": { "$exists" : False } }, no_cursor_timeout=True)
+    cursor = collection.find( {"raw_json.solar_angle" : { "$exists" : True }, "bad_solar_angle": { "$exists" : False } }, no_cursor_timeout=True)
     zero_counter = 0
     one_counter = 0
     for record in cursor:
@@ -247,22 +253,20 @@ def mark_bad_solar_angle():
             collection.update_one({"_id": record["_id"]}, {"$set": {'bad_solar_angle': 0}})
             zero_counter += 1
         print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    total = collection.find({"bad_solar_angle": 0}).count()
+    print("{} viable documents".format(total))
     client.close()
-    pass
-
 
 
 def label_photos(num_pages=93):
-    api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     counter = 0
     skip_count = 0
     for i in range(1, num_pages+1):
         # { "$regex" : '/^{}_/'.format(i) }
-        cursor = collection.find({ "label" : { "$exists" : False }, "date_check" : { "$exists" : True },
+        cursor = collection.find({ "label" : { "$exists" : False }, "bad_solar_angle" : 0,
                                     "relevance_order": { "$regex" : '^{}\_'.format(i) }}, no_cursor_timeout=True)
         print(cursor.count())
-
         for record in cursor:
             try:
                 photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_text_photos/{}_{}.jpg'.format(record['relevance_order'], record['raw_json']['id'])

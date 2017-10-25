@@ -12,6 +12,7 @@ import sys
 import requests
 import calendar
 from bson.objectid import ObjectId
+import pysolar
 
 def setup_mongo_client(db_name, collection_name, client=None, address='mongodb://localhost:27017/'):
     if not client:
@@ -223,6 +224,7 @@ def mark_non_duplicates():
     client, collection = setup_mongo_client('capstone', 'insta_rainbow')
     collection.update_many({"within_thirty_miles": 1, "duplicate": {"$exists" : False}}, {"$set": {"duplicate": 0}})
     client.close()
+
 
 
 def get_time_zone(record, tzwhere_obj):

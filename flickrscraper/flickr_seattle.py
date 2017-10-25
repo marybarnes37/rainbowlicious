@@ -12,7 +12,7 @@ import psutil
 import subprocess
 import re
 from bson.objectid import ObjectId
-# from pysolar.solar import get_altitude
+from pysolar.solar import get_altitude
 import datetime
 import calendar
 import pytz
@@ -55,24 +55,34 @@ def get_api_key():
 #     return api_key, secret
 
 
+def view_duplicate_timestamps(time):
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    cursor = collection.find({'raw_json.datetaken': time})
+    for record in cursor:
+        print(record)
+    client.close()
+
 
 def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
     api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates_test', address='mongodb://localhost:27017/')
     api_url = 'https://api.flickr.com/services/rest'
     photo_dict = {}
-    for i in range(93, num_pages+93):
+    skipped_counter = 0
+    pg_num = 1
+    for i in range(94, num_pages+94):
         params = {'method':'flickr.photos.search',
                   'api_key':api_key,
                   'format':'json',
                   'text': search_term,
-                  'max_taken_date': 1350172799,
+                  'max_taken_date': 1350172800,
                   'extras': 'date_taken',
                   'nojsoncallback':1,
                   'sort' : 'relevance',
-                  'page': i}
+                  'page': page_num}
         r = requests.get(api_url, params=params)
         strings = ['ainbow', 'cloud', 'over']
+        page_num += 1
         for j in range(100):
             try:
                 json = r.json()['photos']['photo'][j]
@@ -85,22 +95,31 @@ def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
                     farm = json['farm']
                     photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
                     photo_filename  = os.path.join(os.environ['HOME'], 'seattle_text_photos/{}_{}.jpg'.format(order, photo_id))
-                    urllib.urlretrieve(photo_url, photo_filename)
-                    photo_dict[photo_id] = [farm, server, photo_id, secret, order]
-                    collection.insert_one({'raw_json': json, 'relevance_order':order})
+                    r = requests.get(photo_url)
+                    if r.status_code == 200:
+                        i = Image.open(StringIO(r.content))
+                        i.save(photo_filename)
+                        photo_dict[photo_id] = [farm, server, photo_id, secret, order]
+                        collection.insert_one({'raw_json': json, 'relevance_order':order})
+                    else:
+                        print(r.status_code)
+                        print(r.content)
+                        skipped_counter += 1
+                        continue
+                    # urllib.urlretrieve(photo_url, photo_filename)
                 if j % 10 == 0:
                     total = collection.find().count()
                     print("at {}_{} iterations have added {} documents to the collection".format(i,j, total))
+                    print("{} images have been skipped".format(skipped_counter))
             except:
                 break
-            time.sleep(2)
+            time.sleep(5)
     with open("sea_text_photodict_precheck_second_batch.pkl",'wb') as f:
         pickle.dump(photo_dict, f)
 
 
 
 def mark_unknown_dates():
-    api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     cursor = collection.find( {"raw_json" : { "$exists" : True },  "unknown_date" : { "$exists" : False }}, no_cursor_timeout=True)
     one_counter = 0
@@ -270,14 +289,16 @@ def label_photos(num_pages=93):
         for record in cursor:
             try:
                 photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_text_photos/{}_{}.jpg'.format(record['relevance_order'], record['raw_json']['id'])
+
                 img = Image.open(photo_filename)
-            except:
-                print('missing photo is {}_{}.jpg'.format(record['relevance_order'], record['raw_json']['id']))
+            except Exception as e:
+                print(e)
+                print('missing photo is {}'.format(photo_filename))
                 skip_count += 1
                 print('skipcount is {}'.format(skip_count))
                 continue
             img.show()
-            collection.update_one({"_id": record["_id"]}, {"$set": {'label': raw_input("Enter 1 for rainbow or 0 for not rainbow: ")}})
+            collection.update_one({"_id": record["_id"]}, {"$set": {'label': input("Enter 1 for rainbow or 0 for not rainbow: ")}})
             img.close()
             os.system('pkill Preview') # find a way to close image first, or do this with matplotlib
             counter +=1

@@ -19,6 +19,7 @@ import pytz
 from tzwhere import tzwhere
 import os
 import datetime
+from StringIO import StringIO
 
 #use database "capstone" and collection "flickr_rainbow"
 

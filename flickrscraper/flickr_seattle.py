@@ -12,15 +12,15 @@ import psutil
 import subprocess
 import re
 from bson.objectid import ObjectId
-from pysolar.solar import get_altitude
+# from pysolar.solar import get_altitude
 import datetime
 import calendar
 import pytz
 from tzwhere import tzwhere
 import os
 import datetime
-# from StringIO import StringIO
-from io import StringIO
+from StringIO import StringIO
+# from io import StringIO
 
 #use database "capstone" and collection "flickr_rainbow"
 

@@ -53,6 +53,7 @@ def clean_flickr_df(df):
 
 
 def find_closest_station(lat, lon):
+    metar_dict
     closest_station = None
     shortest_miles = 10000
     for key, value in metar_dict.iteritems():
@@ -160,7 +161,7 @@ def pickle_df(df, filename):
     df.to_pickle("/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/{}.p".format(filename))
 
 def main(client_text='capstone', collection_text='flickr_rainbow_correct'):
-    # client, collection = setup_mongo_client(client_text, collection_text)
+    client, collection = setup_mongo_client(client_text, collection_text)
     # df = flickr_dataframe(collection)
     # print('finished creating dataframe')
     # pickle_df(df, 'flickr_stage1')

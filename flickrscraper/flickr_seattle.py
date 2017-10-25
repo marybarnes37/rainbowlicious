@@ -10,6 +10,13 @@ import pickle
 import psutil
 import subprocess
 import re
+from bson.objectid import ObjectId
+from pysolar.solar import get_altitude
+import datetime
+import calendar
+import pytz
+from tzwhere import tzwhere
+import os
 
 #use database "capstone" and collection "flickr_rainbow"
 
@@ -45,39 +52,7 @@ def get_api_key():
 #         secret = f.readline().strip()
 #     return api_key, secret
 
-def dl_and_create_dict_radius(num_pages=4, search_term='rainbow', lat=47.60, lon=-122.33):
-    api_key, secret_api = get_api_key()
-    api_url = 'https://api.flickr.com/services/rest'
-    for i in range(1, num_pages+1):
-        params = {'method':'flickr.photos.search',
-                      'api_key':api_key,
-                      'perpage':100,
-                      'format':'json',
-                      'text': search_term,
-                      'lat': lat,
-                      'lon': lon,
-                      'radius': 32,
-                      'has_geo': 1,
-                      'min_taken_date': 1350172800,
-                      'max_taken_date': 1507939200,
-                      'nojsoncallback':1,
-                      'page': i}
-        r = requests.get(api_url, params=params)
-        radially_bound_rainbow_json = r.json()
-        for j in range(250):
-            try:
-                photo_id = radially_bound_rainbow_json['photos']['photo'][j]['id']
-                server = radially_bound_rainbow_json['photos']['photo'][j]['server']
-                secret = radially_bound_rainbow_json['photos']['photo'][j]['secret']
-                farm = radially_bound_rainbow_json['photos']['photo'][j]['farm']
-                photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
-                photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_radial_photos/{}'.format(photo_id)
-                urllib.urlretrieve(photo_url, photo_filename )
-                photo_dict[photo_id] = [farm, server, photo_id, secret]
-            except:
-                break
-    with open("sea_radial_photodict_precheck.pkl",'wb') as f:
-        pickle.dump(photo_dict, f)
+
 
 def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainbow'):
     api_key, secret_api = get_api_key()
@@ -121,7 +96,165 @@ def dl_and_create_dict_text(collection, num_pages=93, search_term='seattle rainb
         pickle.dump(photo_dict, f)
 
 
-def label_photos(collection, num_pages=93):
+
+def mark_unknown_dates():
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    cursor = collection.find( {"raw_json" : { "$exists" : True },  "unknown_date" : { "$exists" : False }}, no_cursor_timeout=True)
+    one_counter = 0
+    zero_counter = 0
+    for record in cursor:
+        if record['raw_json']['datetakenunknown'] == 1:
+            collection.update_one({"_id": record["_id"]}, {"$set": {'unknown_date': 1}})
+            one_counter += 1
+        else:
+            collection.update_one({"_id": record["_id"]}, {"$set": {'unknown_date': 0}})
+            zero_counter += 1
+        print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    client.close()
+
+
+
+def create_dataframe_to_check_duplicates():
+    cursor = collection.find({"unknown_date": 0}, no_cursor_timeout=True)
+    col = ['_id', 'local_datetime_taken']
+    df = pd.DataFrame(columns=col)
+    for record in cursor:
+        df = df.append(pd.DataFrame([[record['_id'], record['raw_json']['datetaken']]],  columns=col), ignore_index=True)
+    cursor.close()
+    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes.p")
+    return df
+
+
+def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates.txt",
+                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes.p"):
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
+    if pickled_df:
+        df = pd.read_pickle(pickled_df)
+    else:
+        df = create_dataframe_to_check_duplicates(collection)
+    pattern = '%Y-%m-%d %H:%M:%S'
+    for i in df.index:
+        local_epoch = int(time.mktime(time.strptime(df.loc[i, 'local_datetime_taken' ], pattern)))
+        df.loc[i, 'local_epoch'] = local_epoch
+    df = df.sort_values(['local_epoch'])
+    f = open(duplicates_filename, 'w')
+    previous_epoch = 0
+    for i in df.index:
+        obs_epoch = df.loc[i, 'local_epoch']
+        if abs(obs_epoch - previous_epoch) < 1800:
+            f.write(str(df.loc[i, '_id']) + '\n')
+        previous_epoch = obs_epoch
+    f.close()
+    client.close()
+
+
+def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates.txt"):
+    client, collection = setup_mongo_client('capstone', 'insta_rainbow')
+    with open(duplicates_filename, 'r') as f:
+        for _id in f:
+            collection.update_one({"_id": ObjectId(_id.strip())}, {"$set": {"duplicate": 1}}, upsert=False)
+    client.close()
+
+
+def mark_non_duplicates():
+    client, collection = setup_mongo_client('capstone', 'insta_rainbow')
+    collection.update_many({"unknown_date": 0, "duplicate": {"$exists" : False}}, {"$set": {"duplicate": 0}})
+    total_dups = collection.find({"duplicate": 1}).count()
+    total_non_dups = collection.find({"duplicate": 0}).count()
+    print("total dups: {}; total_non_dups: {}".format(total_dups, total_non_dups))
+    client.close()
+
+
+def mark_pride():
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    cursor = collection.find( "duplicate" : 0, "pride_day": : { "$exists" : False } }, no_cursor_timeout=True)
+    zero_counter = 0
+    one_counter = 0
+    for record in cursor:
+        if 'pride' in record['raw_json']['title']:
+            collection.update_one({"_id": record["_id"]}, {"$set": {'pride_day': 1}})
+            one_counter += 1
+        else:
+            collection.update_one({"_id": record["_id"]}, {"$set": {'pride_day': 0}})
+            zero_counter += 1
+        print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    client.close()
+
+
+def mark_snoqualmie():
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    cursor = collection.find( "pride_day" : 0, "snoqualmie": : { "$exists" : False } }, no_cursor_timeout=True)
+    zero_counter = 0
+    one_counter = 0
+    for record in cursor:
+        if 'waterfall' in record['raw_json']['title']:
+            collection.update_one({"_id": record["_id"]}, {"$set": {'snoqualmie': 1}})
+            one_counter += 1
+        else:
+            collection.update_one({"_id": record["_id"]}, {"$set": {'snoqualmie': 0}})
+            zero_counter += 1
+        print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    client.close()
+
+
+def lookup_timezone(station):
+    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/metar_timezone_dict.p', 'rb') as f:
+        metar_timezone_dict = pickle.load(f, encoding='latin1')
+    return metar_timezone_dict[station][1]
+
+
+def lookup_lat_lon(station):
+    with open("/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/metar_dict.p",'rb') as f:
+        metar_dict = pickle.load(f, encoding='latin1')
+    return metar_dict[station][0], metar_dict[station][1]
+
+
+def add_solar_angle(station="KBFI"):
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    timezone = lookup_timezone(station)
+    latitude, longitude = lookup_lat_lon(station)
+    cursor = collection.find( "snoqualmie" : 0, "solar_angle": : { "$exists" : False } }, no_cursor_timeout=True)
+    pattern = '%Y-%m-%d %H:%M:%S'
+    added_counter = 0
+    for record in cursor:
+        string_time = record['raw_json']['datetaken']
+        dt_obj = datetime.datetime.strptime(string_time, pattern)
+        datetime =  local_tz.localize(dt_obj)
+        solar_angle = get_altitude(latitude, longitude, datetime)
+        print(solar_angle)
+        collection.update_one({"_id": record["_id"]}, {"$set": {'raw_json.solar_angle': solar_angle}})
+        record['raw_json']['solar_angle']
+        added_counter += 1
+        print("added {}".format(added_counter))
+    client.close()
+
+
+def mark_bad_solar_angle():
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    cursor = collection.find( "solar_angle" : { "$exists" : True }, "bad_solar_angle": { "$exists" : False } }, no_cursor_timeout=True)
+    zero_counter = 0
+    one_counter = 0
+    for record in cursor:
+        if (record['raw_json']['solar_angle'] < -2) or (record['raw_json']['solar_angle'] > 44):
+            collection.update_one({"_id": record["_id"]}, {"$set": {'bad_solar_angle': 1}})
+            one_counter += 1
+        else:
+            collection.update_one({"_id": record["_id"]}, {"$set": {'bad_solar_angle': 0}})
+            zero_counter += 1
+        print("one_counter (bad): {}; zero_counter (good): {}".format(one_counter, zero_counter))
+    client.close()
+    pass
+
+
+
+def label_photos(num_pages=93):
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     counter = 0
     skip_count = 0
     for i in range(1, num_pages+1):
@@ -146,6 +279,55 @@ def label_photos(collection, num_pages=93):
             counter +=1
             if counter == 4:
                 break
+
+
+def add_weather_data():
+    pass
+
+def main():
+    api_key, secret = get_api_key()
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    dl_and_create_dict_text(collection)
+    # get_photo_info()
+    # label_photos()
+    # remove_unknown_added_dates(collection)
+    client.close()
+
+
+
+# def dl_and_create_dict_radius(num_pages=4, search_term='rainbow', lat=47.60, lon=-122.33):
+#     api_key, secret_api = get_api_key()
+#     api_url = 'https://api.flickr.com/services/rest'
+#     for i in range(1, num_pages+1):
+#         params = {'method':'flickr.photos.search',
+#                       'api_key':api_key,
+#                       'perpage':100,
+#                       'format':'json',
+#                       'text': search_term,
+#                       'lat': lat,
+#                       'lon': lon,
+#                       'radius': 32,
+#                       'has_geo': 1,
+#                       'min_taken_date': 1350172800,
+#                       'max_taken_date': 1507939200,
+#                       'nojsoncallback':1,
+#                       'page': i}
+#         r = requests.get(api_url, params=params)
+#         radially_bound_rainbow_json = r.json()
+#         for j in range(250):
+#             try:
+#                 photo_id = radially_bound_rainbow_json['photos']['photo'][j]['id']
+#                 server = radially_bound_rainbow_json['photos']['photo'][j]['server']
+#                 secret = radially_bound_rainbow_json['photos']['photo'][j]['secret']
+#                 farm = radially_bound_rainbow_json['photos']['photo'][j]['farm']
+#                 photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
+#                 photo_filename = '/Users/marybarnes/capstone_galvanize/seattle_radial_photos/{}'.format(photo_id)
+#                 urllib.urlretrieve(photo_url, photo_filename )
+#                 photo_dict[photo_id] = [farm, server, photo_id, secret]
+#             except:
+#                 break
+#     with open("sea_radial_photodict_precheck.pkl",'wb') as f:
+#         pickle.dump(photo_dict, f)
 
 # def get_photo_info():
 #     api_key, secret = get_api_key()
@@ -175,24 +357,3 @@ def label_photos(collection, num_pages=93):
 #         print("{} added this round for a total of {} documents in collection ({} skipped)".format(counter, total, skip_counter))
 #         time.sleep(3)
 #     client.close()
-
-
-
-def remove_unknown_added_dates():
-    api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    cursor = collection.find( {"photo_info" : { "$exists" : True },  "date_check" : { "$exists" : False }}, no_cursor_timeout=True)
-    client.close()
-    pass
-
-
-
-
-def main():
-    api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    dl_and_create_dict_text(collection)
-    # get_photo_info()
-    # label_photos()
-    # remove_unknown_added_dates(collection)
-    client.close()

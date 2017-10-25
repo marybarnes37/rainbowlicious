@@ -66,7 +66,7 @@ def view_duplicate_timestamps(time):
 
 def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
     api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates_test', address='mongodb://localhost:27017/')
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     api_url = 'https://api.flickr.com/services/rest'
     photo_dict = {}
     skipped_counter = 0
@@ -82,7 +82,7 @@ def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
                   'sort' : 'relevance',
                   'page': page_num}
         r = requests.get(api_url, params=params)
-        strings = ['ainbow', 'cloud', 'over']
+        strings = ['ainbow', 'cloud', 'over', 'ain', 'windy', 'storm']
         page_num += 1
         for j in range(100):
             # try:

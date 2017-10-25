@@ -12,7 +12,7 @@ import psutil
 import subprocess
 import re
 from bson.objectid import ObjectId
-from pysolar.solar import get_altitude
+# from pysolar.solar import get_altitude
 import datetime
 import calendar
 import pytz

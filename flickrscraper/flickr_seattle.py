@@ -20,7 +20,8 @@ from tzwhere import tzwhere
 import os
 import datetime
 # from StringIO import StringIO
-from io import StringIO
+from io import StringIO, BytesIO
+
 
 
 # for getting missing images ls -la | grep 172B | cut -c57- | perl -ne '/.*_(.*).jpg/; print "$1\n"'
@@ -67,15 +68,15 @@ def view_duplicate_timestamps(time):
     client.close()
 
 
-def delete_field(field):
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
+def delete_field(field, collection):
     collection.update_many({}, {'$unset': {field: ''}})
-    client.close()
 
 
-def delete_fields(fields = ['duplicate', 'label', 'pride_day', 'snoqualmie', 'raw_json.solar_angle', 'bad_solar_angle']):
+def delete_fields(fields = ['duplicate', 'pride_day', 'snoqualmie', 'raw_json.solar_angle', 'bad_solar_angle']):
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     for field in fields:
-        delete_field(field)
+        delete_field(field, collection)
+    client.close()
 
 def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
     api_key, secret = get_api_key()
@@ -132,10 +133,35 @@ def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
     with open("sea_text_photodict_precheck_second_batch.pkl",'wb') as f:
         pickle.dump(photo_dict, f)
 
-
+def download_missing_images():
+    client, collection = setup_mongo_client('capstone',   'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    skipped_counter = 0
+    with open('/Users/marybarnes/capstone_galvanize/missing_images_ids.txt', 'rb') as f:
+        missing_img_ids = pickle.load(f)
+    for img_id in missing_img_ids:
+        record = collection.find_one( {"raw_json.id" : img_id}, no_cursor_timeout=True)
+        order = record['relevance_order']
+        photo_id = img_id
+        server = record['raw_json']['server']
+        secret = record['raw_json']['secret']
+        farm = record['raw_json']['farm']
+        photo_url = 'https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret)
+        photo_filename  = '/Users/marybarnes/capstone_galvanize/missing_photos/{}_{}.jpg'.format(order, photo_id)
+        r_photo = requests.get(photo_url)
+        if r_photo.status_code == 200:
+            img = Image.open(BytesIO(r_photo.content))
+            img.save(photo_filename)
+        else:
+            print(photo_url)
+            print(r_photo.status_code)
+            print(r_photo.content)
+            skipped_counter += 1
+            print('skipped {}'.format(skipped_counter))
+            continue
+        time.sleep(3)
 
 def mark_unknown_dates():
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    client, collection = setup_mongo_client('capstone',   'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     cursor = collection.find( {"raw_json" : { "$exists" : True },  "unknown_date" : { "$exists" : False }}, no_cursor_timeout=True)
     one_counter = 0
     zero_counter = 0
@@ -165,12 +191,12 @@ def create_dataframe_to_check_duplicates(collection):
         local_epoch = int(time.mktime(time.strptime(df.loc[i, 'local_datetime_taken' ], pattern)))
         df.loc[i, 'local_epoch'] = local_epoch
     df = df.sort_values(['local_epoch'])
-    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_first_half.p")
+    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_all.p")
     return df
 
 
-def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_first_half.txt",
-                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_first_half.p"):
+def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_all.txt",
+                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_all.p"):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     if pickled_df:
         df = pd.read_pickle(pickled_df)
@@ -189,7 +215,7 @@ def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_gal
 
 
 
-def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_2.txt"):
+def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_all.txt"):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     with open(duplicates_filename, 'r') as f:
         for _id in f:
@@ -294,13 +320,15 @@ def mark_bad_solar_angle():
     client.close()
 
 
-def label_photos(num_pages=93):
+def label_photos(num_pages=200):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     skip_count = 0
     for i in range(1, num_pages+1):
         # { "$regex" : '/^{}_/'.format(i) }
+        # change the solar angle and label those as well
         cursor = collection.find({ "label" : { "$exists" : False }, "bad_solar_angle" : 1,
                                     "relevance_order": { "$regex" : '^{}\_'.format(i) }}, no_cursor_timeout=True)
+        # cursor = collection.find({ "label" : { "$nin" : ['0', 0, '1', 1, '2', 2, '-'] }, "bad_solar_angle" : 0}, no_cursor_timeout=True)
         print(cursor.count())
         for record in cursor:
             try:
@@ -325,13 +353,19 @@ def add_weather_data():
     pass
 
 def main():
-    api_key, secret = get_api_key()
-    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
-    dl_and_create_dict_text(collection)
-    # get_photo_info()
+    # api_key, secret = get_api_key()
+    # client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
+    # dl_and_create_dict_text(collection)
+    # mark_unknown_dates()
+    # create_duplicates_list(pickled_df=None)
+    mark_duplicates()
+    mark_non_duplicates()
+    mark_pride()
+    mark_snoqualmie()
+    add_solar_angle()
+    mark_bad_solar_angle()
     # label_photos()
-    # remove_unknown_added_dates(collection)
-    client.close()
+    # client.close()
 
 
 

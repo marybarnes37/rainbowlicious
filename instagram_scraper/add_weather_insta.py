@@ -129,7 +129,7 @@ def find_closest_observation():
     added_counter = 0
     skipped = 0
     for record in cursor:
-        rainbow_time = calendar.timegm(record['datetime'].timetuple())
+        rainbow_time = ar.timegm(record['datetime'].timetuple())
         shortest_time_between = 4000
         index_of_closest_obs = -1
         index_of_obs_before = -1

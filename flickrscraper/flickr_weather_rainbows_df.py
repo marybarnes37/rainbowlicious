@@ -95,26 +95,49 @@ def drop_times_icons_names(df):
     # do I want to drop key?
     columns_to_drop = ['expire_time_gmt', u'wx_icon', u'obs_id', u'valid_time_gmt', u'obs_name',
                       u'key', 'prev_expire_time_gmt', u'prev_wx_icon', u'prev_obs_id', u'prev_valid_time_gmt',
-                        u'prev_obs_name', u'prev_key', 'day_ind', 'icon_extd', 'prev_day_ind', 'prev_icon_extd']
+                        u'prev_obs_name', u'prev_key', 'day_ind', 'prev_day_ind',
+                       'max_temp', 'min_temp', 'prev_max_temp', 'prev_min_temp', 'precip_total', 'prev_precip_total']
+    df.drop(columns_to_drop, axis=1, inplace=True)
     df.to_pickle('/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/dropped_time_icon_names.p')
     return df
 
 
-
 def drop_identifiers(df):
     columns_to_drop = ['_id']
+    df.drop(columns_to_drop, axis=1, inplace=True)
     return df
 
+def cast_columns_to_correct_types(df):
+    numeric_columns = ['gust', 'pressure_tend', 'wdir', 'wspd', 'precip_hrly',
+                   'prev_gust', 'prev_pressure_tend', 'prev_wdir', 'prev_wspd', 'prev_precip_hrly', 'rh', 'dewpt', 'feels_like', 'heat_index', 'wc', 'prev_rh',
+                   'prev_dewpt', 'prev_feels_like', 'prev_heat_index', 'prev_wc']
+    for column in numeric_columns:
+        df[column] = df[column].apply(pd.to_numeric)
+    return df
 
 def fill_missing_values(df):
+    zero_columns = ['gust', 'pressure_tend', 'wdir', 'wspd', 'precip_hrly',
+                   'prev_gust', 'prev_pressure_tend', 'prev_wdir', 'prev_wspd', 'prev_precip_hrly']
+    avg_columns = ['rh', 'dewpt', 'feels_like', 'heat_index', 'wc', 'prev_rh',
+                   'prev_dewpt', 'prev_feels_like', 'prev_heat_index', 'prev_wc']
+    #save average values to use later
+    for column in zero_columns:
+        df[column].fillna(value=0, inplace=True)
+    avg_dict = {}
+    for column in avg_columns:
+        df[column].fillna((df[column].mean()), inplace=True)
+        avg_dict[column] = df[column].mean()
+    with open('/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/average_dict_for_incoming_data.p','wb') as f:
+        pickle.dump(avg_dict, f)
     return df
+
 
 
 def add_dummies(df):
     df = pd.get_dummies(df, columns = ['clds', 'pressure_desc',
               'uv_desc', 'wdir_cardinal', 'wx_phrase',
-              'prev_clds', 'prev_pressure_desc',
-              'prev_uv_desc', 'prev_wdir_cardinal', 'prev_wx_phrase'] )
+              'prev_clds', 'prev_pressure_desc', 'prev_uv_desc', 'prev_wdir_cardinal',
+                'prev_wx_phrase', 'icon_extd', 'prev_icon_extd'] )
     df.to_pickle('/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_rainbows_with_dummies.p')
     return df
 

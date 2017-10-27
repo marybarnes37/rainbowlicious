@@ -78,19 +78,19 @@ def delete_fields(fields = ['duplicate', 'pride_day', 'snoqualmie', 'raw_json.so
         delete_field(field, collection)
     client.close()
 
-def dl_and_create_dict_text(num_pages=105, search_term='seattle rainbow'):
+def dl_and_create_dict_text(num_pages=93, search_term='seattle rainbow'):
     api_key, secret = get_api_key()
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates', address='mongodb://localhost:27017/')
     api_url = 'https://api.flickr.com/services/rest'
     photo_dict = {}
     skipped_counter = 0
     page_num = 7
-    for i in range(100, num_pages+87):
+    for i in range(1, num_pages+1):
         params = {'method':'flickr.photos.search',
                   'api_key':api_key,
                   'format':'json',
                   'text': search_term,
-                  'max_taken_date': 1350172800,
+                #   'max_taken_date': 1350172800,
                   'extras': 'date_taken',
                   'nojsoncallback':1,
                   'sort' : 'relevance',
@@ -191,45 +191,88 @@ def create_dataframe_to_check_duplicates(collection):
         local_epoch = int(time.mktime(time.strptime(df.loc[i, 'local_datetime_taken' ], pattern)))
         df.loc[i, 'local_epoch'] = local_epoch
     df = df.sort_values(['local_epoch'])
-    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_all.p")
+    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_all_new.p")
     return df
 
 
-def create_duplicates_list(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_all.txt",
-                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_all.p"):
+def create_duplicates_list(duplicates_filename = '/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_all_new_2.txt',
+                            non_duplicates_filename = '/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_with_counts.txt',
+                    pickled_df = "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_all_new.p"):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     if pickled_df:
         df = pd.read_pickle(pickled_df)
     else:
         df = create_dataframe_to_check_duplicates(collection)
     f = open(duplicates_filename, 'w')
+    f2 = open(non_duplicates_filename, 'w')
     previous_epoch = 0
+    count = 1
+    count_dict = {}
+    index_of_previous_non_duplicate = 0
     for i in df.index:
         obs_epoch = df.loc[i, 'local_epoch']
         if abs(obs_epoch - previous_epoch) < 1800:
+            count += 1
             f.write(str(df.loc[i, '_id']) + '\n')
+            f2.write(str(df.loc[i, '_id']) + ' 1 ' + str(count) + '\n')
+            df.loc[i, 'dup_count'] = count
         else:
+            count_dict[df.loc[index_of_previous_non_duplicate, '_id']] = count
+            f2.write(str(df.loc[index_of_previous_non_duplicate, '_id']) + ' 0 ' + str(count) + '\n')
             previous_epoch = obs_epoch
+            count = 1
+            index_of_previous_non_duplicate = i
+    with open("/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/duplicates_count_dict.pkl",'wb') as f:
+       pickle.dump(count_dict, f)
     f.close()
+    f2.close()
+    pd.to_pickle(df, "/Users/marybarnes/capstone_galvanize/rainbowlicious/pickles/flickr_seattle_datetimes_sorted_with_counts.p")
     client.close()
 
 
 
-def mark_duplicates(duplicates_filename = "/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_all.txt"):
+def mark_duplicates(duplicates_filename = '/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_all_new.txt'):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
     with open(duplicates_filename, 'r') as f:
         for _id in f:
-            collection.update_one({"_id": ObjectId(_id.strip())}, {"$set": {"duplicate": 1}}, upsert=False)
+            collection.update_one({"_id": ObjectId(_id.strip())}, {"$set": {"duplicate_new": 1}}, upsert=False)
     client.close()
 
 
-def mark_non_duplicates():
+# def mark_non_duplicates():
+#     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
+#     collection.update_many({"unknown_date": 0, "duplicate": {"$exists" : False}}, {"$set": {"duplicate": 0}})
+#     total_dups = collection.find({"duplicate": 1}).count()
+#     total_non_dups = collection.find({"duplicate": 0}).count()
+#     print("total dups: {}; total_non_dups: {}".format(total_dups, total_non_dups))
+#     client.close()
+
+def add_duplicate_counts(duplicate_counts_filename = '/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_with_counts.txt'):
     client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
-    collection.update_many({"unknown_date": 0, "duplicate": {"$exists" : False}}, {"$set": {"duplicate": 0}})
-    total_dups = collection.find({"duplicate": 1}).count()
-    total_non_dups = collection.find({"duplicate": 0}).count()
-    print("total dups: {}; total_non_dups: {}".format(total_dups, total_non_dups))
+    with open(duplicate_counts_filename, 'r') as f:
+        for line in f:
+            collection.update_one({"_id": ObjectId(line[:24].strip())}, {"$set": {"duplicate_new": line[25:26]}}, upsert=False)
+            collection.update_one({"_id": ObjectId(line[:24].strip())}, {"$set": {"duplicate_count" : line[27:]}}, upsert=False)
     client.close()
+
+def view_duplicates(duplicate_counts_filename = '/Users/marybarnes/capstone_galvanize/flickr_seattle_duplicates_with_counts.txt'):
+    client, collection = setup_mongo_client('capstone', 'flickr_rainbow_seattle_w_dates')
+    with open(duplicate_counts_filename, 'r') as f:
+        for line in f:
+            if int(line[27:]) == 2:
+                print("\n\n\nSTARTING new group:")
+            if int(line[27:]) >= 1:
+                record = collection.find_one({"_id": ObjectId(line[:24].strip())})
+                print("time: {}".format(record['raw_json']['datetaken']))
+                photo_id = record['raw_json']['id']
+                server = record['raw_json']['server']
+                secret = record['raw_json']['secret']
+                farm = record['raw_json']['farm']
+                print('https://farm{}.staticflickr.com/{}/{}_{}_m.jpg'.format(farm, server, photo_id, secret))
+                print('relevance order (page_orderOnPage): {}'.format(record['relevance_order']))
+                print('\n')
+    client.close
+
 
 
 def mark_pride():

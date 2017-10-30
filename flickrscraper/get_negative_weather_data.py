@@ -41,7 +41,7 @@ def get_proxy(machine='ec2'):
 
 
 def add_daily_weather():
-    client, collection = setup_mongo_client('capstone', 'seattle_historical_weather_test')
+    client, collection = setup_mongo_client('capstone', 'seattle_historical_weather')
     added_counter = 0
     skipped = 0
     proxies = {'http' : get_proxy()}

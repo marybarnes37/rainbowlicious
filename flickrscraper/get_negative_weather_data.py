@@ -75,7 +75,7 @@ def add_daily_weather():
             total = collection.find().count()
             print('added {} weather dicts and skipped {}'.format(added_counter, skipped))
             print('a total of {} local dates have been added'.format(total))
-            time.sleep(2)
+            time.sleep(4)
             if added_counter == 5:
                 break
 

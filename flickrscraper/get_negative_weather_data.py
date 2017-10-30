@@ -25,6 +25,20 @@ def get_api_key(machine='local'):
     return api_key
 
 
+def get_proxy(machine='ec2'):
+    if machine == 'local':
+        path = '/Users/marybarnes/.ssh/proxy.txt'
+        with open(path,'r', encoding='latin-1') as f:
+            proxy = f.readline().strip()
+        # proxy = 'http://' + str(proxy)
+    elif machine == 'ec2':
+        path = os.path.join(os.environ['HOME'],'proxy.txt')
+        with open(path,'r', encoding='latin-1') as f:
+            proxy = f.readline().strip()
+    return str(proxy)
+
+
+
 def add_daily_weather():
     client, collection = setup_mongo_client('capstone', 'seattle_historical_weather_test')
     cursor = collection.find({'bad_solar_angle' : {"$exists" : True}, "daily_weather": {"$exists" : False}}, no_cursor_timeout=True)

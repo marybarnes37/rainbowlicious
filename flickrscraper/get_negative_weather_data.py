@@ -30,21 +30,23 @@ def add_daily_weather():
     cursor = collection.find({'bad_solar_angle' : {"$exists" : True}, "daily_weather": {"$exists" : False}}, no_cursor_timeout=True)
     added_counter = 0
     skipped = 0
-#     proxies = {'http' : get_proxy()}
-    with open('/Users/marybarnes/capstone_galvanize/start_dates.txt') as start_file, open('/Users/marybarnes/capstone_galvanize/end_dates.txt') as end_file:
+    proxies = {'http' : get_proxy()}
+    path_start = os.path.join(os.environ['HOME'],'start_dates.txt')
+    path_end = os.path.join(os.environ['HOME'],'end_dates.txt')
+    with open(path_start) as start_file, open(path_end) as end_file:
         for start, end in zip(start_file, end_file):
             start = start.strip()
             end = end.strip()
             url = construct_weather_url(start, end)
             try:
                 try:
-                    r = requests.get(url)
+                    r = requests.get(url, proxies = proxies)
                 except Exception as e1:
                     print("sleeping for 5 seconds because request failed, exception: {}".format(str(e1)))
                     with open('weather_errors_and_status_log.txt', "a") as myfile:
                         myfile.write(str(e1))
                     time.sleep(5)
-                    r = requests.get(url)
+                    r = requests.get(url, proxies = proxies)
             except Exception as e2:
                 print("SKIPPING because request failed, exception: {}".format(str(e2)))
                 with open('weather_errors_and_status_log.txt', "a") as myfile:

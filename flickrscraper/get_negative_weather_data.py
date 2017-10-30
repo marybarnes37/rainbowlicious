@@ -4,6 +4,7 @@ import time
 import os
 import sys
 import requests
+import io
 
 def setup_mongo_client(db_name, collection_name, client=None, address='mongodb://localhost:27017/'):
     if not client:
@@ -33,7 +34,7 @@ def get_proxy(machine='ec2'):
         # proxy = 'http://' + str(proxy)
     elif machine == 'ec2':
         path = os.path.join(os.environ['HOME'],'proxy.txt')
-        with open(path,'r', encoding='latin-1') as f:
+        with open(path,'r') as f:
             proxy = f.readline().strip()
     return str(proxy)
 
@@ -41,7 +42,6 @@ def get_proxy(machine='ec2'):
 
 def add_daily_weather():
     client, collection = setup_mongo_client('capstone', 'seattle_historical_weather_test')
-    cursor = collection.find({'bad_solar_angle' : {"$exists" : True}, "daily_weather": {"$exists" : False}}, no_cursor_timeout=True)
     added_counter = 0
     skipped = 0
     proxies = {'http' : get_proxy()}
@@ -87,11 +87,11 @@ def add_daily_weather():
                     myfile.write('encountered status code {} for url {}'.format(r.status_code, url))
                 skipped += 1
             total = collection.find().count()
-            print('added {} weather dicts and skipped {}'.format(added_counter, skipped))
-            print('a total of {} local dates have been added'.format(total))
+            print('added {} weather days and skipped {}'.format(added_counter, skipped))
+            print('a total of {} observations have been added'.format(total))
             time.sleep(4)
-            if added_counter == 5:
-                break
+            start_file.close()
+            end_file.close()
 
 
 def construct_weather_url(startDate, endDate, lat = '47.33', lon = '-122.19'):

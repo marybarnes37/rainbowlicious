@@ -16,7 +16,7 @@ def setup_mongo_client(db_name, collection_name, client=None, address='mongodb:/
     return client, collection
 
 
-def get_api_key(machine='local'):
+def get_api_key(machine='ec2'):
     if machine == 'local':
         path = '/Users/marybarnes/.ssh/weather.txt'
     elif machine == 'ec2':

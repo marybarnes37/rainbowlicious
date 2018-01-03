@@ -1,8 +1,6 @@
-# rainbowlicious
+# PROPOSAL
 
-A rainbow predictor built on data science, Twilio and awesomeness. 
-
-(also, a work in progress)
+Below is a proposal for how to build a rainbow predictor. Please see my repo at https://github.com/marybarnes37/rainbow_flask/ for information on the final implementation. 
 
 ## Business Understanding
 
